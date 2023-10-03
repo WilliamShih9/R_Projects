@@ -1,0 +1,324 @@
+---
+title: "BodyFat"
+output: pdf_document
+date: "2023-07-18"
+---
+
+# National Health and Nutrition Examination Survey 2017-2018
+
+The NHANES includes DEXA scan of participants age 8-59, which allows researchers to calculate the body fat percentage of participants.
+
+A large amount of other data is also collected. Sampling weights are used to collect the data, so a simple arithmetic mean will not work. Instead, weighted means and weighted quantiles must be used to calculate any means and quantiles (in this case, percentiles). In this case `Hmisc::wtd.quantile` calculates weighted quantiles.
+
+Waist/Height Ratio is a commonly used way to calculate a person's health, since calcalating a person's body fat percentage is difficult and hard to do. Even a DEXA scan is not perfectly accurate. Waist/Height Ratio may be a better alternative to BMI in many cases.
+
+A Waist/Height Ratio of under 0.5 is optimal, but the majority of the population is above that, confirming that there is indeed an obesity crisis. As expected, Waist/Height Ratio, BMI, and Body Fat Percentage are all highly correlated with each other.
+
+Women and men store fat differently, so body fat percentage that is healthy is different. For women, body fat percentage should be under 33% and for men, body fat percentage should be under 21%. 
+
+For the last section, I use a linear model to calculate the estimated body fat percentage by BMI.
+
+```{r setup}
+library(haven)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+res = read_xpt("C:/Users/willi/Downloads/DXX_J.xpt")
+demo = read_xpt("C:/Users/willi/Downloads/DEMO_J.xpt")
+body = read_xpt("C:/Users/willi/Downloads/BMX_J.xpt")
+
+total = demo %>%
+  left_join(body, by = "SEQN") %>%
+  left_join(res, by = "SEQN")
+
+bf = total %>%
+  mutate(Race = recode(RIDRETH3,
+                       `1` = "Mexican American",
+                       `2` = "Other Hispanic",
+                       `3` = "Non-Hispanic White",
+                       `4` = "Non-Hispanic Black",
+                       `6` = "Non-Hispanic Asian",
+                       `7` = "Other Race")) %>%
+  mutate(Edu = recode(DMDEDUC2,
+                      `1` = 	"Less than 12th grade",
+                      `2` = 	"Less than 12th grade",	
+                      `3` =	"High school graduate/GED or equivalent",
+                      `4` =	"Some college or AA degree",
+                      `5` = "College graduate or above",
+                      `6` = "Other",
+                      `7` = "Other",
+                      .default = "Other")) %>%
+  mutate(Sex = recode(RIAGENDR,
+                      `1` = "Male",
+                      `2` = "Female")) %>%
+  filter(!is.na(DXDTOPF)) %>%
+  filter(RIDAGEYR >= 25 & RIDAGEYR <= 59) %>%
+  group_by(RIDAGEYR, Sex) %>%
+  summarize(BodyFat05 = Hmisc::wtd.quantile(DXDTOPF, WTMEC2YR, probs = 0.05, normwt = TRUE),
+            BodyFat10 = Hmisc::wtd.quantile(DXDTOPF, WTMEC2YR, probs = 0.1, normwt = TRUE),
+            BodyFat25 = Hmisc::wtd.quantile(DXDTOPF, WTMEC2YR, probs = 0.25, normwt = TRUE),
+            BodyFat50 = Hmisc::wtd.quantile(DXDTOPF, WTMEC2YR, probs = 0.5, normwt = TRUE))
+
+bf = bf %>%
+  pivot_longer(cols = 3:6, names_prefix = "BodyFat", names_to = "Body Fat Percentile", values_to = "Percent")
+
+ggplot(bf, aes(x = RIDAGEYR, y = Percent, color = Sex, linetype = `Body Fat Percentile`, group = interaction(`Body Fat Percentile`, Sex))) + 
+  theme_bw() + xlab("Age") + ylab("Body Fat Percentage")+
+  labs(fill="Percentile and Sex") + 
+  ggtitle("Body Fat Percentile by Age and Sex") +
+  stat_smooth(se = FALSE, span = 0.65, formula = y ~ x, method = "loess")
+```
+
+
+```{r}
+ratio = total %>%
+  mutate(Race = recode(RIDRETH3,
+                       `1` = "Mexican American",
+                       `2` = "Other Hispanic",
+                       `3` = "Non-Hispanic White",
+                       `4` = "Non-Hispanic Black",
+                       `6` = "Non-Hispanic Asian",
+                       `7` = "Other Race")) %>%
+  mutate(Edu = recode(DMDEDUC2,
+                      `1` = 	"Less than 12th grade",
+                      `2` = 	"Less than 12th grade",	
+                      `3` =	"High school graduate/GED or equivalent",
+                      `4` =	"Some college or AA degree",
+                      `5` = "College graduate or above",
+                      `6` = "Other",
+                      `7` = "Other",
+                      .default = "Other")) %>%
+  mutate(Sex = recode(RIAGENDR,
+                      `1` = "Male",
+                      `2` = "Female")) %>%
+  mutate(Ratio = BMXWAIST/BMXHT) %>%
+  filter(RIDAGEYR >= 25 & RIDAGEYR <= 59) %>%
+  group_by(RIDAGEYR, Sex) %>%
+  summarize(BodyFat05 = Hmisc::wtd.quantile(Ratio, WTMEC2YR, probs = 0.05, normwt = TRUE),
+            BodyFat10 = Hmisc::wtd.quantile(Ratio, WTMEC2YR, probs = 0.1, normwt = TRUE),
+            BodyFat25 = Hmisc::wtd.quantile(Ratio, WTMEC2YR, probs = 0.25, normwt = TRUE),
+            BodyFat50 = Hmisc::wtd.quantile(Ratio, WTMEC2YR, probs = 0.5, normwt = TRUE))
+
+ratio = ratio %>%
+  pivot_longer(cols = 3:6, names_prefix = "BodyFat", names_to = "Waist/Height Percentile", values_to = "Percent")
+
+ggplot(ratio, aes(x = RIDAGEYR, y = Percent, color = Sex, linetype = `Waist/Height Percentile`, group = interaction(`Waist/Height Percentile`, Sex))) + 
+  theme_bw() + xlab("Age") + ylab("Waist/Height Ratio")+
+  labs(fill="Percentile and Sex") + 
+  ggtitle("Waist/Height Percentile by Age and Sex") +
+  stat_smooth(se = FALSE, span = 0.65, formula = y ~ x, method = "loess")
+```
+
+
+```{r}
+ratio = total %>%
+  mutate(Race = recode(RIDRETH3,
+                       `1` = "Mexican American",
+                       `2` = "Other Hispanic",
+                       `3` = "Non-Hispanic White",
+                       `4` = "Non-Hispanic Black",
+                       `6` = "Non-Hispanic Asian",
+                       `7` = "Other Race")) %>%
+  mutate(Edu = recode(DMDEDUC2,
+                      `1` = 	"Less than 12th grade",
+                      `2` = 	"Less than 12th grade",	
+                      `3` =	"High school graduate/GED or equivalent",
+                      `4` =	"Some college or AA degree",
+                      `5` = "College graduate or above",
+                      `6` = "Other",
+                      `7` = "Other",
+                      .default = "Other")) %>%
+  mutate(Sex = recode(RIAGENDR,
+                      `1` = "Male",
+                      `2` = "Female")) %>%
+  mutate(Ratio = BMXWAIST/BMXHIP) %>%
+  filter(RIDAGEYR >= 25 & RIDAGEYR <= 59) %>%
+  group_by(RIDAGEYR, Sex) %>%
+  summarize(BodyFat05 = Hmisc::wtd.quantile(Ratio, WTMEC2YR, probs = 0.05, normwt = TRUE),
+            BodyFat10 = Hmisc::wtd.quantile(Ratio, WTMEC2YR, probs = 0.1, normwt = TRUE),
+            BodyFat25 = Hmisc::wtd.quantile(Ratio, WTMEC2YR, probs = 0.25, normwt = TRUE),
+            BodyFat50 = Hmisc::wtd.quantile(Ratio, WTMEC2YR, probs = 0.5, normwt = TRUE))
+
+ratio = ratio %>%
+  pivot_longer(cols = 3:6, names_prefix = "BodyFat", names_to = "Waist/Hip Percentile", values_to = "Percent")
+
+ggplot(ratio, aes(x = RIDAGEYR, y = Percent, color = Sex, linetype = `Waist/Hip Percentile`, group = interaction(`Waist/Hip Percentile`, Sex))) + 
+  theme_bw() + xlab("Age") + ylab("Waist/Hip Ratio")+
+  labs(fill="Percentile and Sex") + 
+  ggtitle("Waist/Hip Percentile by Age and Sex") +
+  stat_smooth(se = FALSE, span = 0.65, formula = y ~ x, method = "loess")
+```
+
+
+```{r}
+total = total %>%
+  filter(RIDAGEYR >= 20 & RIDAGEYR <= 59)
+gg = lm(DXDTOPF ~ BMXWAIST + I(BMXWAIST^2) + BMXHT + BMXHIP + RIAGENDR + factor(RIDRETH3), data = total)
+total$BodyFatPredict = predict(gg, total)
+```
+
+
+```{r}
+bf = total %>%
+  mutate(Race = recode(RIDRETH3,
+                       `1` = "Mexican American",
+                       `2` = "Other Hispanic",
+                       `3` = "Non-Hispanic White",
+                       `4` = "Non-Hispanic Black",
+                       `6` = "Non-Hispanic Asian",
+                       `7` = "Other Race")) %>%
+  mutate(Edu = recode(DMDEDUC2,
+                      `1` = 	"Less than 12th grade",
+                      `2` = 	"Less than 12th grade",	
+                      `3` =	"High school graduate/GED or equivalent",
+                      `4` =	"Some college or AA degree",
+                      `5` = "College graduate or above",
+                      `6` = "Other",
+                      `7` = "Other",
+                      .default = "Other")) %>%
+  mutate(Sex = recode(RIAGENDR,
+                      `1` = "Male",
+                      `2` = "Female")) %>%
+  filter(!is.na(BodyFatPredict)) %>%
+  filter(RIDAGEYR >= 25 & RIDAGEYR <= 59) %>%
+  group_by(RIDAGEYR, Sex) %>%
+  summarize(BodyFat05 = Hmisc::wtd.quantile(BodyFatPredict, WTMEC2YR, probs = 0.05, normwt = TRUE),
+            BodyFat10 = Hmisc::wtd.quantile(BodyFatPredict, WTMEC2YR, probs = 0.1, normwt = TRUE),
+            BodyFat25 = Hmisc::wtd.quantile(BodyFatPredict, WTMEC2YR, probs = 0.25, normwt = TRUE),
+            BodyFat50 = Hmisc::wtd.quantile(BodyFatPredict, WTMEC2YR, probs = 0.5, normwt = TRUE))
+
+
+below15 = total %>%
+  filter(RIAGENDR == 1 & !is.na(DXDTOPF)) %>%
+  mutate(Below15 = ifelse(DXDTOPF <= 15, 1, 0)) %>%
+  group_by(RIDAGEYR) %>%
+  summarize(Below15 = weighted.mean(Below15, WTMEC2YR))
+
+bf = bf %>%
+  pivot_longer(cols = 3:6, names_prefix = "BodyFat", names_to = "Body Fat Percentile", values_to = "Percent")
+
+ggplot(bf, aes(x = RIDAGEYR, y = Percent, color = Sex, linetype = `Body Fat Percentile`, group = interaction(`Body Fat Percentile`, Sex))) + 
+  theme_bw() + xlab("Age") + ylab("Body Fat Percentage")+
+  labs(fill="Percentile and Sex") + 
+  ggtitle("Body Fat Percentile (Estimated with Formula) by Age and Sex") +
+  stat_smooth(se = FALSE, span = 0.65, formula = y ~ x, method = "loess")
+```
+
+
+# BMI vs Body Fat Percentage from DEXA Scan
+
+```{r}
+total = total %>%
+  filter(RIDAGEYR >= 20 & RIDAGEYR <= 50)
+ggplot(total %>% filter(RIAGENDR == 1), aes(x = DXDTOPF, BMXBMI)) + geom_point() + stat_smooth(se = FALSE) + ylim(15, 40) + xlim(10, 45) + theme_bw() + xlab("Body Fat Percentage") + ylab("BMI") + ggtitle("Body Fat Percentage and BMI for Males Age 20-50")
+```
+
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 1 & BMXHT >= 173 & BMXHT <= 180), aes(x = DXDTOPF, BMXBMI)) + geom_point() + stat_smooth(se = FALSE) + ylim(15, 40) + xlim(10, 45) + theme_bw() + xlab("Body Fat Percentage") + ylab("BMI") + ggtitle("Body Fat Percentage and BMI for Males Age 20-50 (Height 173-180 cm)")
+```
+
+
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 2), aes(x = DXDTOPF, BMXBMI)) + geom_point() + stat_smooth(se = FALSE) + ylim(15, 40) + xlim(15, 50) + theme_bw() + xlab("Body Fat Percentage") + ylab("BMI") + ggtitle("Body Fat Percentage and BMI for Females Age 20-50")
+```
+
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 1), aes(y = DXDTOPF, x = BMXBMI)) + geom_point() + stat_smooth(se = FALSE) + xlim(15, 40) + ylim(10, 45) + theme_bw() + ylab("Body Fat Percentage") + xlab("BMI") + ggtitle("BMI and Body Fat Percentage for Males Age 20-50")
+```
+
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 2), aes(y = DXDTOPF, x = BMXBMI)) + geom_point() + stat_smooth(se = FALSE) + xlim(15, 40) + ylim(15, 50) + theme_bw() + ylab("Body Fat Percentage") + xlab("BMI") + ggtitle("BMI and Body Fat Percentage for Females Age 20-50")
+```
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 1), aes(x = BMXWAIST, y = DXDTOPF)) + geom_point() + stat_smooth(se = FALSE) + theme_bw() + ylab("Body Fat Percentage") + xlab("Waist Circumference (cm)") + ggtitle("Waist Circumference and Body Fat Percentage for Males Age 20-50")
+```
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 1 & BMXHT >= 173 & BMXHT <= 180), aes(x = BMXWAIST, y = DXDTOPF)) + geom_point() + stat_smooth(se = FALSE) + theme_bw() + ylab("Body Fat Percentage") + xlab("Waist Circumference (cm)") + ggtitle("Waist Circumference and Body Fat Percentage for Males Age 20-50 (Height 173-180 cm)")
+```
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 2), aes(x = BMXWAIST, y = DXDTOPF)) + geom_point() + stat_smooth(se = FALSE) + theme_bw() + ylab("Body Fat Percentage") + xlab("Waist Circumference (cm)") + ggtitle("Waist Circumference and Body Fat Percentage for Females Age 20-50")
+```
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 2) %>% mutate(Ratio = BMXWAIST/BMXHIP), aes(x = Ratio, y = DXDTOPF)) + geom_point() + stat_smooth(se = FALSE) + theme_bw() + ylab("Body Fat Percentage") + xlab("Waist/Hip Ratio") + ggtitle("Waist/Hip Ratio and Body Fat Percentage for Females Age 20-50")
+```
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 1) %>% mutate(Ratio = BMXWAIST/BMXHIP), aes(x = Ratio, y = DXDTOPF)) + geom_point() + stat_smooth(se = FALSE) + theme_bw() + ylab("Body Fat Percentage") + xlab("Waist/Hip Ratio") + ggtitle("Waist/Hip Ratio and Body Fat Percentage for Males Age 20-50")
+```
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 2) %>% mutate(Ratio = BMXWAIST/BMXHIP), aes(x = Ratio, y = BMXBMI)) + geom_point() + stat_smooth(se = FALSE) + theme_bw() + ylab("BMI") + xlab("Waist/Hip Ratio") + ggtitle("Waist/Hip Ratio and BMI for Females Age 20-50")
+```
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 1) %>% mutate(Ratio = BMXWAIST/BMXHIP), aes(x = Ratio, y = BMXBMI)) + geom_point() + stat_smooth(se = FALSE) + theme_bw() + ylab("BMI") + xlab("Waist/Hip Ratio") + ggtitle("Waist/Hip Ratio and BMI for Males Age 20-50")
+```
+
+
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 2) %>% mutate(Ratio = BMXWAIST/BMXHT), aes(x = Ratio, y = BMXBMI)) + geom_point() + stat_smooth(se = FALSE) + theme_bw() + ylab("BMI") +  ylim(15, 60) + xlab("Waist/Height Ratio") + ggtitle("Waist/Height Ratio and BMI for Females Age 20-50")
+```
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 1) %>% mutate(Ratio = BMXWAIST/BMXHT), aes(x = Ratio, y = BMXBMI)) + geom_point() + stat_smooth(se = FALSE) + theme_bw() + ylab("BMI") + ylim(15, 60) + xlab("Waist/Height Ratio") + ggtitle("Waist/Height Ratio and BMI for Males Age 20-50")
+```
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 1) %>% mutate(Ratio = BMXWAIST/BMXHT), aes(x = Ratio, y = BMXBMI)) + geom_point() + stat_smooth(se = FALSE) + theme_bw() + ylab("BMI") + ylim(15, 60) + xlab("Waist/Height Ratio") + ggtitle("Waist/Height Ratio and BMI for Males Age 20-50")
+```
+
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 1) %>% mutate(Ratio = BMXWAIST/BMXHT, FFMI = BMXBMI * (100 - DXDTOPF)/100), aes(x = FFMI, y = Ratio)) + geom_point() + stat_smooth(se = FALSE) + theme_bw() + ylab("Waist/Height Ratio") + xlab("Fat Free Mass Index") + ggtitle("Fat Free Mass Index and Waist/Height Ratio for Males Age 20-50")
+```
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 1) %>% mutate(FFMI = BMXBMI * (100 - DXDTOPF)/100), aes(x = FFMI, y = DXDTOPF)) + geom_point() + stat_smooth(se = FALSE) + theme_bw() + ylab("Body Fat Percentage") + xlab("Fat Free Mass Index") + ggtitle(" Fat Free Mass Index and Body Fat Percentage for Males Age 20-50")
+```
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 1) %>% mutate(FFMI = BMXBMI * (100 - DXDTOPF)/100), aes(x = FFMI, y = BMXBMI)) + geom_point() + stat_smooth(se = FALSE) + theme_bw() + ylab("BMI") + ylim(15, 60) + xlab("Fat Free Mass Index") + ggtitle(" Fat Free Mass Index and BMI for Males Age 20-50")
+```
+
+
+```{r}
+get_bf = function(waist, height, hip, race = 6, gender){
+  predict(gg, data.frame(BMXWAIST = waist * 2.54, BMXHT = height * 2.54, RIDRETH3 = race, BMXHIP = hip * 2.54, RIAGENDR = gender))
+}
+```
+
+
+# BMI vs Body Fat Percentage Estimated
+
+
+```{r}
+total$DXDTOPF = total$BodyFatPredict
+ggplot(total %>% filter(RIAGENDR == 1), aes(x = DXDTOPF, BMXBMI)) + geom_point() + stat_smooth(se = FALSE) + ylim(15, 40) + xlim(10, 45) + theme_bw() + xlab("Estimated Body Fat Percentage") + ylab("BMI") + ggtitle("Estimated Body Fat Percentage and BMI for Males Age 20-50")
+```
+
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 2), aes(x = DXDTOPF, BMXBMI)) + geom_point() + stat_smooth(se = FALSE) + ylim(15, 40) + xlim(15, 50) + theme_bw() + xlab("Estimated Body Fat Percentage") + ylab("BMI") + ggtitle("Estimated Body Fat Percentage and BMI for Females Age 20-50")
+```
+
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 1), aes(y = DXDTOPF, x = BMXBMI)) + geom_point() + stat_smooth(se = FALSE) + xlim(15, 40) + ylim(10, 45) + theme_bw() + ylab("Estimated Body Fat Percentage") + xlab("BMI") + ggtitle("BMI and Estimated Body Fat Percentage for Males Age 20-50")
+```
+
+
+```{r}
+ggplot(total %>% filter(RIAGENDR == 2), aes(y = DXDTOPF, x = BMXBMI)) + geom_point() + stat_smooth(se = FALSE) + xlim(15, 40) + ylim(15, 50) + theme_bw() + ylab("Estimated Body Fat Percentage") + xlab("BMI") + ggtitle("BMI and Estimated Body Fat Percentage for Females Age 20-50")
+```
+
+
+

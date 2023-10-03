@@ -1,0 +1,566 @@
+---
+title: "Simulate Distribution of CAASPP"
+output:
+  pdf_document: default
+  html_document: default
+date: "2023-08-14"
+---
+
+# California Assessment of Student Performance and Progress and SBAC
+
+The California Assessment of Student Performance and Progress (CAASPP) uses the Smarter Balanced Assessment Consortium (SBAC) tests for the English Language Arts (ELA) and Mathematics portion of the test. The SBAC is a standardized test consortium that created Common Core aligned tests to be used in several states and California is one of them. The SBAC uses a vertical scale that connects the scores in each of the grades so that the same scale is used in each of the English tests (Grades 3-8 and 11) and Math testes (Grades 3-8 and 11).
+
+Often, the raw scores from an exam are transformed into a scale score which is normally distributed. The entire scale score distribution is released by the CAASPP for each exam (from released technical reports). https://www.cde.ca.gov/ta/tg/ca/caaspprptstudies.asp I copy and pasted each score distribution from a word document into an Excel spreadsheet in order to later analyze the data. 
+
+The mean and SD for subgroups are also available from cross-tabulations. https://www.cde.ca.gov/ta/tg/ca/caaspp2022datasummary.asp
+
+I examine how close to a normal distribution the score distribution by simulating the scores. I simulate by separating simulating a normal distribution for each "race and gender" combination and also each "race and economic status" combination. That is why there are two analyses that look mostly identical to one another. Economic status is determined by whether a student is eligible for reduced or free lunch. 
+
+Most of the scores below actually do follow close enough to a normal distribution. But there are always deviations from the actual vs modeled distribution of the data for all of the exams. There are instances of a large hump where the maximum obtainable scale score and lowest obtainable scale score are. CAASPP has actually done something to reduce the humps at the ends by increasing the maximum obtainable scale score for 2021 and beyond. The humps at the upper end used to be larger as a large percent of the students used to obtain the maximum possible score. It is clear the Science test (which is not from the SBAC) does not a follow a normal distribution in its scores. The Grade 11 English test also has large deviations from normality in its scale score distribution. 
+
+With the simulated data, an estimate of scale scores divided by race, gender, or economic status can be obtained. Note that the data at the tails is likely quite inaccurate, because the data in reality does not follow a perfect normal distribution as can be seen by the deviations from the actual vs modeled distribution. Also, the modeled data at the tails goes beyond the actual maximum obtainable score or lowest obtain score, where the data no longer is valid. The relative error will be larger at the tails, because there is less data at the tails
+
+
+```{r}
+set.seed(1)
+library(dplyr)
+library(ggplot2)
+mean_sd = readxl::read_excel("G:/My Drive/More Statistics/CAASP2021-2022/MeanAndSDbyGender.xlsx")
+mean_sd_status = readxl::read_excel("G:/My Drive/More Statistics/CAASP2021-2022/MeanAndSDbyEconomicStatus.xlsx")
+mean_sd_by_all = readxl::read_excel("G:/My Drive/More Statistics/CAASP2021-2022/MeanAndSDAll.xlsx")
+
+get_distribution = function(mean_sd, replicate = 1){
+  all = list()
+  for(i in 1:16){
+    all[[i]] =  rnorm(n = mean_sd$Count[i] * replicate, mean = mean_sd$Mean[i], sd = mean_sd$SD[i])
+    all[[i]] = data.frame(Ethnicity = mean_sd$Ethnicity[i], Gender = mean_sd$Gender[i], Score = all[[i]])
+  }
+  
+  all = all %>% bind_rows()
+  all$Type = mean_sd$Type[1]
+  all$Grade = mean_sd$Grade[1]
+  all
+}
+
+get_distribution_status = function(mean_sd, replicate = 1){
+  all = list()
+  for(i in 1:16){
+    all[[i]] =  rnorm(n = mean_sd$Count[i] * replicate, mean = mean_sd$Mean[i], sd = mean_sd$SD[i])
+    all[[i]] = data.frame(Ethnicity = mean_sd$Ethnicity[i], Status = mean_sd$Status[i], Score = all[[i]])
+  }
+  
+  all = all %>% bind_rows()
+  all$Type = mean_sd$Type[1]
+  all$Grade = mean_sd$Grade[1]
+  all
+}
+
+
+get_distribution_percentiles = function(mean_sd, replicate = 10){
+  all = list()
+  for(i in 1:16){
+    all[[i]] =  rnorm(n = mean_sd$Count[i] * replicate, mean = mean_sd$Mean[i], sd = mean_sd$SD[i])
+    if (mean_sd$Ethnicity[i] == "Filipino"){
+      all[[i]] = data.frame(Ethnicity = "Asian", Score = all[[i]])
+    }
+    else{
+      all[[i]] = data.frame(Ethnicity = mean_sd$Ethnicity[i], Score = all[[i]]) 
+    }
+  }
+  
+  all = all %>% bind_rows()
+  all$Type = mean_sd$Type[1]
+  all$Grade = mean_sd$Grade[1]
+  quant = c(0.05,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.95)
+  all %>%
+    group_by(Ethnicity, Type, Grade) %>%
+    reframe(Score = quantile(Score, quant),
+            Quant = quant) %>%
+    bind_rows(all %>%
+                mutate(Ethnicity ="All") %>%
+                group_by(Ethnicity, Type, Grade) %>%
+                reframe(Score = quantile(Score, quant),
+                        Quant = quant))
+}
+
+```
+
+# Do Only Once to Simulate the Quantiles
+
+```{r, eval = FALSE}
+try_by_gender = lapply(mean_sd %>% 
+                         filter(Type != "Science") %>%
+                         group_split(Type, Grade), get_distribution_percentiles) %>% bind_rows()
+try_by_gender$Method = "Gender"
+try_by_status = lapply(mean_sd_status %>%
+                         group_split(Type, Grade), get_distribution_percentiles) %>% bind_rows()
+try_by_status$Method = "Status"
+complete = bind_rows(try_by_gender, try_by_status) %>%
+  left_join(mean_sd_by_all, by = c("Grade", "Type")) %>%
+  mutate(StandardScore = (Score - MeanScore)/SDScore)
+
+write.csv(complete, "SimulatedQuantilesbyRace_FilipinoCombined.csv")
+
+
+complete_wide = complete %>%
+  select(Ethnicity, Type, Method, Grade, Quant, StandardScore) %>%
+  tidyr::pivot_wider(names_from = "Quant", values_from = "StandardScore")
+write.csv(complete_wide, "SimulatedQuantilesbyRace_Wide_FilipinoCombined.csv")
+```
+
+
+# Do Everything With Simulating by "Race and Gender"
+
+```{r, warning = FALSE}
+
+mean_sd_all = lapply(mean_sd %>%
+                       group_split(Type, Grade), get_distribution)
+actual_score_all = readxl::read_excel("G:/My Drive/More Statistics/CAASP2021-2022/ActualEntireScoreDistribution.xlsx") %>%
+  tidyr::uncount(N) %>%
+  group_split(Type, Grade)
+
+list_data = list()
+
+
+for(i in seq_along(mean_sd_all)){
+  frame = rbind(data.frame(Type = "Modeled", Score = mean_sd_all[[i]]$Score), 
+                data.frame(Type = "Actual", Score = actual_score_all[[i]]$Score))
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    if(mean_sd_all[[i]]$Grade[i] == 8){
+      break_this = seq(320, 480, 20)
+    }
+    else{
+      break_this = seq(520, 680, 20)
+    }
+    bin_this = 2
+  }
+  else{
+    left = plyr::round_any(quantile(mean_sd_all[[i]]$Score, 0.001), 200)
+    right = plyr::round_any(quantile(mean_sd_all[[i]]$Score, 0.999), 200)
+    break_this = seq(left, right, 200)
+    bin_this = 10
+  }
+  list_data[[i]] = frame %>%
+    ggplot(aes(x = Score, fill = Type)) +
+    geom_histogram(alpha = 0.4, binwidth = bin_this, position = "identity") +
+    theme_bw() + scale_x_continuous(breaks = break_this) +
+     xlab("Score") + ggtitle(paste("Actual vs Modeled Distribution of Scores \n (California Assessment, Using Race/Gender) for Grade",
+                                   mean_sd_all[[i]]$Grade[1], mean_sd_all[[i]]$Type[1]))
+}
+
+
+race_data = list()
+
+
+for(i in seq_along(mean_sd_all)){
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    if(mean_sd_all[[i]]$Grade[i] == 8){
+      break_this = seq(320, 480, 20)
+    }
+    else{
+      break_this = seq(520, 680, 20)
+    }
+    bin_this = 2
+  }
+  else{
+    left = plyr::round_any(quantile(mean_sd_all[[i]]$Score, 0.001), 200)
+    right = plyr::round_any(quantile(mean_sd_all[[i]]$Score, 0.999), 200)
+    break_this = seq(left, right, 200)
+    bin_this = 10
+  }
+  race_data[[i]] = mean_sd_all[[i]]  %>%
+    filter(Ethnicity != "American Indian" &
+             Ethnicity != "Pacific Islander") %>%
+    ggplot(aes(x = Score, y = after_stat(count), fill = Ethnicity)) +
+    geom_density(alpha = 0.3) + ylab("Count") +
+    theme_bw() + scale_x_continuous(breaks = break_this) +
+     xlab("Score") + ggtitle(paste("Modeled Distribution of Scores by Race \n (California Assessment, Using Race/Gender) for Grade",
+                                   mean_sd_all[[i]]$Grade[1], mean_sd_all[[i]]$Type[1]))
+}
+
+every_nth = function(n) {
+  return(function(x) {x[c(TRUE, rep(FALSE, n - 1))]})
+}
+
+
+
+dist_data = list()
+cumulative_data = list()
+
+for(i in seq_along(mean_sd_all)){
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    if(mean_sd_all[[i]]$Grade[i] == 8){
+      mean_sd_all[[i]]$Group = cut(mean_sd_all[[i]]$Score, breaks = seq(340, 460, 4))
+    }
+    else{
+      mean_sd_all[[i]]$Group = cut(mean_sd_all[[i]]$Score, breaks = seq(540, 660, 4), dig.lab = 10)
+    }
+  }
+  else{
+    left = plyr::round_any(quantile(mean_sd_all[[i]]$Score, 0.001), 40)
+    right = plyr::round_any(quantile(mean_sd_all[[i]]$Score, 0.999), 40)
+    mean_sd_all[[i]]$Group = cut(mean_sd_all[[i]]$Score, breaks = seq(left, right, 40), dig.lab = 10)
+  }
+  temp = mean_sd_all[[i]] %>%
+    group_by(Ethnicity, Group) %>%
+    summarize(Count = n()) %>%
+    ungroup() %>%
+    group_by(Group) %>%
+    mutate(Percent = Count/sum(Count)) %>%
+    ungroup() %>%
+    group_by(Ethnicity) %>%
+    arrange(desc(Group)) %>%
+    mutate(CountSum = cumsum(Count)) %>%
+    ungroup() %>%
+    group_by(Group) %>%
+    mutate(PercentLess = CountSum/sum(CountSum))
+  labels = temp %>% group_by(Group) %>% summarize(nice = sum(Count))
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    levels(temp$Group) = paste0(as.numeric(stringr::str_sub(labels$Group, 2, 4)) + 2, 
+                                " n=", labels$nice)
+  }
+  else{
+    levels(temp$Group) = paste0(as.numeric(stringr::str_sub(labels$Group, 2, 5)) + 20, 
+                                " n=", labels$nice)
+  }
+  dist_data[[i]] = temp %>%
+    filter(!is.na(Group)) %>%
+    ggplot(aes(x = Group, y = Percent, fill = Ethnicity)) +
+    geom_bar(width = 0.75, position = "stack", stat = "identity") +
+    scale_x_discrete(guide = guide_axis(angle = 90)) + 
+    scale_y_continuous(breaks = seq(0, 1, 0.2)) +
+    theme_bw() + ylab("Proportion of Score Bin") +
+    xlab("Score Bin") + 
+    ggtitle(paste("Modeled Distribution of Scores by Race \n (California Assessment, Using Race/Gender) for Grade",
+                                   mean_sd_all[[i]]$Grade[1], mean_sd_all[[i]]$Type[1]))
+  labels = temp %>% group_by(Group) %>% summarize(nice = sum(Count)) %>%
+    arrange(desc(Group)) %>%
+    mutate(nice_cum = cumsum(nice)) %>%
+    arrange(Group)
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    total = max(labels$nice_cum)
+    levels(temp$Group) = paste0(as.numeric(stringr::str_sub(labels$Group, 1, 3)), 
+                                " (", sprintf("%0.1f%%", 100 * labels$nice_cum/total), ")")
+  }
+  else{
+    total = max(labels$nice_cum)
+    levels(temp$Group) = paste0(as.numeric(stringr::str_sub(labels$Group, 1, 4)), 
+                                " (", sprintf("%0.1f%%", 100 * labels$nice_cum/total), ")")
+  }
+  cumulative_data[[i]] = temp %>%
+    filter(!is.na(Group)) %>%
+    ggplot(aes(x = Group, y = PercentLess, color = Ethnicity, group = Ethnicity)) +
+    geom_line(size = 1) + geom_point(size = 1.5) +
+    scale_x_discrete(guide = guide_axis(angle = 90), limits = rev) + 
+    scale_y_continuous(breaks = seq(0, 1, 0.2)) +
+    theme_bw() + ylab("Cumulative Proportion") +
+    xlab("Score (Top % of Scores)") + 
+    ggtitle(paste("Cumulative Distribution (Score of At least) of Scores by Race \n (California Assessment, Using Race/Gender) for Grade",
+                                   mean_sd_all[[i]]$Grade[1], mean_sd_all[[i]]$Type[1]))
+}
+
+
+gender_data = list()
+
+
+for(i in seq_along(mean_sd_all)){
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    if(mean_sd_all[[i]]$Grade[i] == 8){
+      mean_sd_all[[i]]$Group = cut(mean_sd_all[[i]]$Score, breaks = seq(340, 460, 4))
+    }
+    else{
+      mean_sd_all[[i]]$Group = cut(mean_sd_all[[i]]$Score, breaks = seq(540, 660, 4), dig.lab = 10)
+    }
+  }
+  else{
+    left = plyr::round_any(quantile(mean_sd_all[[i]]$Score, 0.001), 40)
+    right = plyr::round_any(quantile(mean_sd_all[[i]]$Score, 0.999), 40)
+    mean_sd_all[[i]]$Group = cut(mean_sd_all[[i]]$Score, breaks = seq(left, right, 40), dig.lab = 10)
+  }
+  temp = mean_sd_all[[i]] %>%
+    group_by(Gender, Group) %>%
+    summarize(Count = n()) %>%
+    ungroup() %>%
+    group_by(Group) %>%
+    mutate(Percent = Count/sum(Count))
+  labels = temp %>% group_by(Group) %>% summarize(nice = sum(Count))
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    levels(temp$Group) = paste0(as.numeric(stringr::str_sub(labels$Group, 2, 4)) + 2, " n=", labels$nice)
+    title = "Modeled Distribution of Scores by Economic Status (California Assessment) \n for Grade"
+  }
+  else{
+    levels(temp$Group) = paste0(as.numeric(stringr::str_sub(labels$Group, 2, 5)) + 20, " n=", labels$nice)
+    title = "Modeled Distribution of Scores by Gender (California Assessment) \n for Grade"
+  }
+  gender_data[[i]] = temp %>%
+    filter(!is.na(Group)) %>%
+    ggplot(aes(x = Group, y = Percent, fill = Gender)) +
+    geom_bar(width = 0.75, position = "stack", stat = "identity") +
+    scale_x_discrete(guide = guide_axis(angle = 90)) + 
+    scale_y_continuous(breaks = seq(0, 1, 0.2)) +
+    theme_bw() + ylab("Proportion of Score Bin") +
+    xlab("Score Bin") + 
+    ggtitle(paste(title, mean_sd_all[[i]]$Grade[1], mean_sd_all[[i]]$Type[1]))
+}
+
+
+```
+
+
+```{r}
+list_data
+race_data
+dist_data
+cumulative_data
+gender_data
+```
+
+
+# Repeat Everything but With Simulating by "Race and Economic Status"
+
+```{r, warning = FALSE}
+mean_sd_all= lapply(mean_sd_status %>%
+                       group_split(Type, Grade), get_distribution_status)
+actual_score = readxl::read_excel("G:/My Drive/More Statistics/CAASP2021-2022/ActualEntireScoreDistribution.xlsx") %>%
+  tidyr::uncount(N) %>%
+  filter(Type != "Science") %>%
+  group_split(Type, Grade)
+
+list_data_status = list()
+
+
+for(i in seq_along(mean_sd_all)){
+  frame = rbind(data.frame(Type = "Modeled", Score = mean_sd_all[[i]]$Score), 
+                data.frame(Type = "Actual", Score = actual_score_all[[i]]$Score))
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    if(mean_sd_all[[i]]$Grade[i] == 8){
+      break_this = seq(320, 480, 20)
+    }
+    else{
+      break_this = seq(520, 680, 20)
+    }
+    bin_this = 2
+  }
+  else{
+    break_this = seq(2000, 3200, 200)
+    bin_this = 10
+  }
+  list_data_status[[i]] = frame %>%
+    ggplot(aes(x = Score, y = after_stat(count), fill = Type)) +
+    geom_histogram(alpha = 0.4, binwidth = bin_this, position = "identity") +
+    theme_bw() + scale_x_continuous(breaks = break_this) +
+    xlab("Score") + ggtitle(paste("Actual vs Modeled Distribution of Scores \n (California Assessment, Using Race/Economic) for Grade",
+                                   mean_sd_all[[i]]$Grade[1], mean_sd_all[[i]]$Type[1]))
+}
+
+
+race_data_status = list()
+
+
+for(i in seq_along(mean_sd_all)){
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    if(mean_sd_all[[i]]$Grade[i] == 8){
+      break_this = seq(320, 480, 20)
+    }
+    else{
+      break_this = seq(520, 680, 20)
+    }
+    bin_this = 2
+  }
+  else{
+    left = plyr::round_any(quantile(mean_sd_all[[i]]$Score, 0.001), 200)
+    right = plyr::round_any(quantile(mean_sd_all[[i]]$Score, 0.999), 200)
+    break_this = seq(left, right, 200)
+    bin_this = 10
+  }
+  race_data_status[[i]] = mean_sd_all[[i]] %>%
+    filter(Ethnicity != "American Indian" &
+             Ethnicity != "Pacific Islander") %>%
+    ggplot(aes(x = Score, y = after_stat(count), fill = Ethnicity)) + 
+    geom_density(alpha = 0.3) + ylab("Count") +
+    theme_bw() + scale_x_continuous(breaks = break_this) +
+    xlab("Score") + ggtitle(paste("Modeled Distribution of Scores by Race \n (California Assessment, Using Race/Economic) for Grade",
+                                   mean_sd_all[[i]]$Grade[1], mean_sd_all[[i]]$Type[1]))
+}
+
+every_nth = function(n) {
+  return(function(x) {x[c(TRUE, rep(FALSE, n - 1))]})
+}
+
+
+
+dist_data_status = list()
+cumulative_data_status = list()
+
+for(i in seq_along(mean_sd_all)){
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    if(mean_sd_all[[i]]$Grade[i] == 8){
+      mean_sd_all[[i]]$Group = cut(mean_sd_all[[i]]$Score, breaks = seq(340, 460, 4))
+    }
+    else{
+      mean_sd_all[[i]]$Group = cut(mean_sd_all[[i]]$Score, breaks = seq(540, 660, 4), dig.lab = 10)
+    }
+  }
+  else{
+    left = plyr::round_any(quantile(mean_sd_all[[i]]$Score, 0.001), 40)
+    right = plyr::round_any(quantile(mean_sd_all[[i]]$Score, 0.999), 40)
+    mean_sd_all[[i]]$Group = cut(mean_sd_all[[i]]$Score, breaks = seq(left, right, 40), dig.lab = 10)
+  }
+  temp = mean_sd_all[[i]] %>%
+    group_by(Ethnicity, Group) %>%
+    summarize(Count = n()) %>%
+    ungroup() %>%
+    group_by(Group) %>%
+    mutate(Percent = Count/sum(Count)) %>%
+    ungroup() %>%
+    group_by(Ethnicity) %>%
+    arrange(desc(Group)) %>%
+    mutate(CountSum = cumsum(Count)) %>%
+    ungroup() %>%
+    group_by(Group) %>%
+    mutate(PercentLess = CountSum/sum(CountSum))
+  labels = temp %>% group_by(Group) %>% summarize(nice = sum(Count))
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    levels(temp$Group) = paste0(as.numeric(stringr::str_sub(labels$Group, 2, 4)) + 2, 
+                                " n=", labels$nice)
+  }
+  else{
+    levels(temp$Group) = paste0(as.numeric(stringr::str_sub(labels$Group, 2, 5)) + 20, 
+                                " n=", labels$nice)
+  }
+  dist_data_status[[i]] = temp %>%
+    filter(!is.na(Group)) %>%
+    ggplot(aes(x = Group, y = Percent, fill = Ethnicity)) +
+    geom_bar(width = 0.75, position = "stack", stat = "identity") +
+    scale_x_discrete(guide = guide_axis(angle = 90)) + 
+    scale_y_continuous(breaks = seq(0, 1, 0.2)) +
+    theme_bw() + ylab("Proportion of Score Bin") +
+    xlab("Score Bin") + 
+    ggtitle(paste("Modeled Distribution of Scores by Race \n (California Assessment, Using Race/Economic) for Grade",
+                                   mean_sd_all[[i]]$Grade[1], mean_sd_all[[i]]$Type[1]))
+  labels = temp %>% group_by(Group) %>% summarize(nice = sum(Count)) %>%
+    arrange(desc(Group)) %>%
+    mutate(nice_cum = cumsum(nice)) %>%
+    arrange(Group)
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    total = max(labels$nice_cum)
+    levels(temp$Group) = paste0(as.numeric(stringr::str_sub(labels$Group, 1, 3)), 
+                                " (", sprintf("%0.1f%%", 100 * labels$nice_cum/total), ")")
+  }
+  else{
+    total = max(labels$nice_cum)
+    levels(temp$Group) = paste0(as.numeric(stringr::str_sub(labels$Group, 1, 4)), 
+                                " (", sprintf("%0.1f%%", 100 * labels$nice_cum/total), ")")
+  }
+  cumulative_data_status[[i]] = temp %>%
+    filter(!is.na(Group)) %>%
+    ggplot(aes(x = Group, y = PercentLess, color = Ethnicity, group = Ethnicity)) +
+    geom_line(size = 1) + geom_point(size = 1.5) +
+    scale_x_discrete(guide = guide_axis(angle = 90), limits=rev) +
+    scale_y_continuous(breaks = seq(0, 1, 0.2)) +
+    theme_bw() + ylab("Cumulative Proportion") +
+    xlab("Score (Top % of Scores)") + 
+    ggtitle(paste("Cumulative Distribution (Score of At least) of Scores by Race \n (California Assessment, Using Race/Economic) for Grade",
+                                   mean_sd_all[[i]]$Grade[1], mean_sd_all[[i]]$Type[1]))
+}
+
+
+dist_data_POOR_status = list()
+
+
+for(i in seq_along(mean_sd_all)){
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    if(mean_sd_all[[i]]$Grade[i] == 8){
+      mean_sd_all[[i]]$Group = cut(mean_sd_all[[i]]$Score, breaks = seq(340, 460, 4))
+    }
+    else{
+      mean_sd_all[[i]]$Group = cut(mean_sd_all[[i]]$Score, breaks = seq(540, 660, 4), dig.lab = 10)
+    }
+  }
+  else{
+    temp = mean_sd_all[[i]] %>%
+        filter(Status == "Economically Disadvantaged")
+    left = plyr::round_any(quantile(temp$Score, 0.001), 40)
+    right = plyr::round_any(quantile(temp$Score, 0.999), 40)
+    temp$Group = cut(temp$Score, breaks = seq(left, right, 40), dig.lab = 10)
+  }
+  temp = temp %>%
+    group_by(Ethnicity, Group) %>%
+    summarize(Count = n()) %>%
+    ungroup() %>%
+    group_by(Group) %>%
+    mutate(Percent = Count/sum(Count))
+  labels = temp %>% group_by(Group) %>% summarize(nice = sum(Count))
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    levels(temp$Group) = paste0(as.numeric(stringr::str_sub(labels$Group, 2, 4)) + 2, " n=", labels$nice)
+  }
+  else{
+    levels(temp$Group) = paste0(as.numeric(stringr::str_sub(labels$Group, 2, 5)) + 20, " n=", labels$nice)
+  }
+  dist_data_POOR_status[[i]] = temp %>%
+    filter(!is.na(Group)) %>%
+    ggplot(aes(x = Group, y = Percent, fill = Ethnicity)) +
+    geom_bar(width = 0.75, position = "stack", stat = "identity") +
+    scale_x_discrete(guide = guide_axis(angle = 90)) + 
+    scale_y_continuous(breaks = seq(0, 1, 0.2)) +
+    theme_bw() + ylab("Proportion of Score Bin") +
+    xlab("Score Bin") +  
+    ggtitle(paste("Modeled Distribution of Scores by Race (California Assessment) \n for Economically Disadvantaged for Grade",
+                                   mean_sd_all[[i]]$Grade[1], mean_sd_all[[i]]$Type[1]))
+}
+
+gender_data_status = list()
+
+
+for(i in seq_along(mean_sd_all)){
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    if(mean_sd_all[[i]]$Grade[i] == 8){
+      mean_sd_all[[i]]$Group = cut(mean_sd_all[[i]]$Score, breaks = seq(340, 460, 4))
+    }
+    else{
+      mean_sd_all[[i]]$Group = cut(mean_sd_all[[i]]$Score, breaks = seq(540, 660, 4), dig.lab = 10)
+    }
+  }
+  else{
+    left = plyr::round_any(quantile(mean_sd_all[[i]]$Score, 0.001), 40)
+    right = plyr::round_any(quantile(mean_sd_all[[i]]$Score, 0.999), 40)
+    mean_sd_all[[i]]$Group = cut(mean_sd_all[[i]]$Score, breaks = seq(left, right, 40), dig.lab = 10)
+  }
+  temp = mean_sd_all[[i]] %>%
+    group_by(Status, Group) %>%
+    summarize(Count = n()) %>%
+    ungroup() %>%
+    group_by(Group) %>%
+    mutate(Percent = Count/sum(Count))
+  labels = temp %>% group_by(Group) %>% summarize(nice = sum(Count))
+  if(mean_sd_all[[i]]$Type[i] == "Science"){
+    levels(temp$Group) = paste0(as.numeric(stringr::str_sub(labels$Group, 2, 4)) + 2, " n=", labels$nice)
+    title = "Modeled Distribution of Scores by Economic Status (California Assessment) \n for Grade"
+  }
+  else{
+    levels(temp$Group) = paste0(as.numeric(stringr::str_sub(labels$Group, 2, 5)) + 20, " n=", labels$nice)
+    title = "Modeled Distribution of Scores by Economic Status (California Assessment) \n for Grade"
+  }
+  gender_data_status[[i]] = temp %>%
+    filter(!is.na(Group)) %>%
+    ggplot(aes(x = Group, y = Percent, fill = Status)) +
+    geom_bar(width = 0.75, position = "stack", stat = "identity") +
+    scale_x_discrete(guide = guide_axis(angle = 90)) + 
+    scale_y_continuous(breaks = seq(0, 1, 0.2)) +
+    theme_bw() + ylab("Proportion of Score Bin") +
+    xlab("Score Bin") + 
+    ggtitle(paste(title, mean_sd_all[[i]]$Grade[1], mean_sd_all[[i]]$Type[1]))
+}
+
+```
+
+
+```{r}
+list_data_status
+race_data_status
+dist_data_status
+dist_data_POOR_status
+cumulative_data_status
+gender_data_status
+```
+

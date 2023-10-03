@@ -1,0 +1,59 @@
+---
+title: "Taiwan GDP By Sector"
+output: pdf_document
+date: "2022-11-19"
+---
+
+# Taiwan GDP by Sector
+
+This contains data that comes for the Taiwan DGBAS.
+
+Gross Domestic Product measures economic activity of an country: https://en.wikipedia.org/wiki/Gross_domestic_product
+
+The data can be assessed from https://nstatdb.dgbas.gov.tw/dgbasall/webMain.aspx?k=engmain
+Specifically, the following analysis includes data from "4.2 Quarterly Gross Domestic Product by Kind of Activity and Price Deflator-Annual".
+
+Takeaways from following charts:
+
+1) As typical, when countries develop, the percent of GDP that goes to agriculture declines.
+
+2) When countries develop, the percent of GDP that goes to services increase.
+
+3) The percent of GDP that goes to industry increases to a peak and then declines steadily (and never goes back up). Typically, this is a steady decline. Very unusual for any economy, Taiwan sees a decline but a rise again in the 2010s. Even more bizarre is that the percentage of GDP that goes to services declines in the 2010s, which rarely ever happens.
+
+4) The percentage of GDP that goes to accommodation and food services (hotels and restaurants) goes up, as typical when countries become richer.
+
+5) During the pandemic, ocean shipping prices skyrocketed for a brief period as consumers bought goods instead of services and pandemic shutdowns reduced supply. As larger percentage of Taiwan's economy is from ocean shipping, so the percentage of GDP that goes to Transportation and Storage briefly rose in 2021 and 2022. 
+
+6) A small statistic discrepancy arises with the different approaches to GDP: The disprepancy in chart below is the difference in the output method and the expenditure method. https://www.cso.ie/en/interactivezone/statisticsexplained/nationalaccountsexplained/grossdomesticproducthowitismeasured/#:~:text=The%20Income%20Method%20(all%20income,Expenditure%20Method%20(all%20spending)
+
+```{r, warning = FALSE}
+library(readxl)
+library(zoo)
+library(ggplot2)
+library(dplyr)
+asdf <- read_excel("C:/Users/willi/Downloads/E018103020-02558096.xlsx", 
+    skip = 2, col_types = c("guess", "text","numeric","numeric","numeric"))
+asdf[[1]][1:4760] = sort(rep(unique(asdf[[1]])[c(1:170)], 28))
+colnames(asdf) = c("Quarter","Sector","GDP", "RealGDP","Price")
+asdf[[1]] = as.Date(as.yearqtr(asdf[[1]], "%Y Q%q"))
+
+
+plot_this = function(Res, Divide){
+  Res[3] = 100 * Res[3]/Divide[3]
+  ggplot(Res, aes(x = Quarter, y = GDP)) +
+    geom_point() + 
+    geom_line() +
+    theme_bw() + xlab("Year") + ylab("% of GDP") + 
+    ggtitle(paste0("Percent of Taiwan GDP for ", Res[[2]][1]))
+}
+
+
+Res = group_split(asdf, Sector)
+
+plots = lapply(Res[1:27], function(x) plot_this(x, Res[[27]]))
+```
+
+```{r}
+plots
+```

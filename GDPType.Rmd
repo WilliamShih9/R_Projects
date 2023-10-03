@@ -1,0 +1,142 @@
+---
+title: "GDPType"
+output: pdf_document
+date: "2022-11-23"
+---
+
+# GDP Type
+
+This calculates the percent of GDP that is for each type of income.
+
+Gross Domestic Product measures economic activity of an country:
+https://en.wikipedia.org/wiki/Gross_domestic_product
+
+Later, in Value Added section, I calculate the percent of value added in each industry that are profits in "Net Operating Surplus divided by Value Added". One problem with this is that net operating surplus is not exactly the same as profits. Net operating surplus includes income for self-employed workers.
+
+
+Big takeaways:
+
+1) One major reason for the decline in labor share of GDP (percent of GDP that goes to workers) is increasing depreciation. GDP is not the same as income (which is why it is "gross") as it does not take into account depreciation of the capital stock.
+
+2) The data shows that profits did not increase a very extreme amount during COVID. The charts to pay attention to are "Profits after tax with IVA and CCAdj" versus "Compensation of employees". Note that the charts for corporate business only include corporations, while the later charts for net operating surplus include all businesses.
+
+3) The chart for "Net Operating Surplus divided by Value Added 1998-2021 for All industries" does not show a spike during COVID-19.
+
+4) One industry with a huge spike in profits is supposedly the food service industry.
+
+
+```{r setup, include=FALSE}
+library(readr)
+Table <- read_csv("C:/Users/willi/Downloads/Table.csv", col_names = FALSE, skip = 5)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+Table[3:133] = Table[3:133] %>% mutate(across(where(is.character), as.numeric))
+Relative = bind_rows(apply(Table[3:132], 1, function(x) 100 * x/Table[1,3:132]))
+colnames(Relative) = seq(as.Date("1990/01/01"), by = "quarter", length.out = 130)
+Relative = cbind(paste(Table[[1]], Table[[2]]), Relative)
+Proportion = Relative %>% pivot_longer(cols = 2:131, names_to = "Quarter", values_to = "Proportion")
+Proportion[[2]] = as.Date(Proportion[[2]])
+colnames(Proportion) = c("Type","Quarter","Relative")
+```
+
+```{r}
+make_plot = function(frame){
+  title = paste0("Percent of US National Income for Q1 1990-Q2 2022 in \n",frame[[1]][1])
+  ggplot(frame, aes(x = Quarter, y = Relative)) +
+    geom_point() +
+    geom_line() + theme_bw() +
+    ggtitle(title)
+}
+```
+
+
+
+```{r}
+Proportion_Type = group_split(Proportion, Type)
+Plots = lapply(Proportion_Type, make_plot)
+```
+
+```{r}
+Plots
+```
+
+# Corporate Business
+
+
+```{r}
+library(readr)
+Table <- read_csv("C:/Users/willi/Downloads/Table (3).csv", col_names = FALSE, skip = 5)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+Table[3:250] = Table[3:250] %>% mutate(across(where(is.character), as.numeric))
+Relative = bind_rows(apply(Table[1:17, 3:252], 1, function(x) 100*x/Table[1,3:252]),
+                     apply(Table[18:31, 3:252], 1, function(x) 100*x/Table[17,3:252]),
+                     apply(Table[32:54, 3:252], 1, function(x) 100*x/Table[1, 3:252]))
+colnames(Relative) = seq(as.Date("1960/01/01"), by = "quarter", length.out = 250)
+Relative = cbind(paste(Table[[1]], Table[[2]]), Relative)
+Proportion = Relative %>% pivot_longer(cols = 2:251, names_to = "Quarter", values_to = "Proportion")
+Proportion[[2]] = as.Date(Proportion[[2]])
+colnames(Proportion) = c("Type","Quarter","Relative")
+```
+
+```{r}
+make_plot = function(frame){
+  title = paste0("Percent of US Corporate Business Value Added for Q1 1960-Q2 2022 in \n",frame[[1]][1])
+  ggplot(frame, aes(x = Quarter, y = Relative)) +
+    geom_point() + ylab("Percent") +
+    geom_line() + theme_bw() +
+    ggtitle(title)
+}
+```
+
+
+
+```{r}
+Proportion_Type = group_split(Proportion, Type)
+Plots = lapply(Proportion_Type, make_plot)
+```
+
+```{r}
+Plots
+```
+
+# Value Added
+
+```{r}
+Table1 <- read_csv("C:/Users/willi/Downloads/Table (4).csv", col_names = FALSE, skip = 5)
+Table1[3:26] = Table1[3:26] %>% mutate(across(where(is.character), as.numeric))
+Table2 <- read_csv("C:/Users/willi/Downloads/Table (6).csv", col_names = FALSE, skip = 5)
+Table2[3:26] = Table2[3:26] %>% mutate(across(where(is.character), as.numeric))
+Proportion = 100*Table1[3:26]/Table2[3:26]
+colnames(Proportion) = c(1998:2021)
+Proportion = cbind(Table1[[2]], Proportion)
+
+Proportion = Proportion %>% pivot_longer(cols = 2:25, names_to = "Year", values_to = "Percent")
+colnames(Proportion) = c("Type","Year","Percent")
+Proportion[[2]] = as.numeric(Proportion[[2]])
+```
+
+
+```{r}
+make_plot_value = function(frame){
+  title = paste0("Net Operating Surplus divided by Value Added 1998-2021 for \n",frame[[1]][1])
+  ggplot(frame, aes(x = Year, y = Percent)) +
+    geom_point() +
+    geom_line() + theme_bw() +
+    ggtitle(title)
+}
+```
+
+
+```{r}
+Proportion_Type = group_split(Proportion, Type)
+Plots = lapply(Proportion_Type, make_plot_value)
+```
+
+```{r}
+Plots
+```
+
+

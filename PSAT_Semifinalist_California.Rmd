@@ -1,0 +1,158 @@
+---
+title: "PSAT Semifinalist"
+output: pdf_document
+date: "2023-08-06"
+---
+
+# PSAT Semifinalists in California from 2015-2023
+
+The National Merit Scholarship Program acknowledges the top 0.5% of PSAT scorers as Semifinalists for each state in the United States. There are approximately 16,000 semifinalists each year in the United States.
+
+Different states have different thresholds depending on how well each state does. A list of schools and student names that are Semifinalists are released every year for each state. Therefore, the number of semifinalists for each school district and year can be computed. I did not find the data for 2017 and 2019 online, but they are probably available somewhere.
+
+Since the data is from a PDF, the data is loaded from PDF to Excel by copying and pasting the entire document. Then, some data cleaning is required in R. Some of the school names consist of two lines of text since they are too long, so I manually looked at the school names that require two lines and a had a special case just for those schools with two lines of text.
+
+Trends to notice:
+
+1) The number of semifinalists is very concentrated in certain school districts, especially in suburban areas, likely due to segregation.
+
+2) The number of semifinalists within each school district have remained pretty consistent over the past 8 years.
+
+```{r}
+library(readxl)
+library(dplyr)
+NationalMerit2023 <- read_excel("C:/Users/willi/Documents/NationalMerit2023.xlsx", col_names = "All") %>%
+  filter(All != "California (continued)" & All != "Semifinalists: 2023 National Merit Scholarship Program"
+         & !(All %in% c(0:9)))
+NationalMerit2022 <- read_excel("C:/Users/willi/Documents/NationalMerit2022.xlsx", col_names = "All") %>%
+  filter(All != "California (continued)" & All != "Semifinalists: 2022 National Merit Scholarship Program"
+         & !(All %in% c(0:9)))
+NationalMerit2021 <- read_excel("C:/Users/willi/Documents/NationalMerit2021.xlsx", col_names = "All") %>%
+  filter(All != "California (continued)" & All != "Semifinalists: 2021 National Merit Scholarship Program"
+         & !(All %in% c(0:9)))
+NationalMerit2018 <- read_excel("C:/Users/willi/Documents/NationalMerit2018.xlsx", col_names = "All") %>%
+  filter(All != "California (continued)" & All != "Semifinalists: 2018 National Merit Scholarship Program"
+         & !(All %in% c(0:9)))
+NationalMerit2016 <- read_excel("C:/Users/willi/Documents/NationalMerit2016.xlsx", col_names = "All") %>%
+  filter(All != "California (continued)" & All != "Semifinalists: 2016 National Merit Scholarship Program"
+         & !(All %in% c(0:9)))
+NationalMerit2015 <- read_excel("C:/Users/willi/Documents/NationalMerit2015.xlsx", col_names = "All") %>%
+  filter(All != "California (continued)" & All != "Semifinalists: 2015 National Merit Scholarship Program"
+         & !(All %in% c(0:9)))
+convert_this = function(temp, year){
+  vect = temp[[1]]
+  blacklist = c("CRYSTAL SPRINGS", "FLINTRIDGE PREPARATORY", "TARBUT V'TORAH COMMUNITY",
+                "DR. T. J. OWENS GILROY EARLY", "PACIFIC PALISADES", "SANTA MARGARITA",
+                "PALOS VERDES DISTANCE", "UNIVERSITY PREPARATORY", "CALIFORNIA ACADEMY OF", 
+                "FLINTRIDGE SACRED", "WALDORF SCHOOL OF", "INSPIRE SCHOOL OF ARTS",
+                "FAIRMONT PREPARATORY", "SACRED HEART", "QUALIA THE SCHOOL FOR",
+                "BELLARMINE COLLEGE", "DEVELOPING VIRTUE", "TEMECULA PREPARATORY",
+                "LOS ANGELES CENTER FOR", "BASIS INDEPENDENT", "RUTH ASAWA SCHOOL OF",
+                "ACADEMY OF OUR LADY", "JOHN MARSHALL", "ORANGE COUNTY SCHOOL OF",
+                "GEORGIANA BRUCE KIRBY", "JEWISH COMMUNITY H. S. OF", "SAN DIEGO H. S. OF",
+                "SOUTHERN CALIFORNIA", "GERMAN INTERNATIONAL", "GIRLS ACADEMIC",
+                "ST. IGNATIUS COLLEGE", "SACRAMENTO COUNTRY", "GALILEO ACADEMY OF SCIENCE",
+                "LOS ANGELES COUNTY H. S. FOR", "FRANCISCO BRAVO MEDICAL", "CIRCLE OF INDEPENDENT")
+  temp$School = ""
+  temp$City = ""
+  temp$Year = year
+  school = ""
+  city = ""
+  
+  skip = FALSE
+  for(i in seq_along(vect)){
+    if(skip){
+      skip = FALSE
+      next
+    }
+    if(vect[i] %in% blacklist){
+      school = paste(vect[i], vect[i+1])
+      temp$School[i] = NA
+      temp$City[i] = NA
+      temp$School[i+1] = NA
+      temp$City[i+1] = NA
+      skip = TRUE
+    }
+    else if (grepl("H. S.|SCHOOL|ACADEMY|HORIZON PREP|HIGH TECH HIGH|KIPP SAN JOSE COLLEGIATE|FOSHAY LEARNING CENTER|CAMPBELL HALL", 
+                   vect[i])){
+      school = vect[i]
+      temp$School[i] = NA
+      temp$City[i] = NA
+    }
+    else if (grepl("[0-9]", vect[i])){
+      temp$School[i] = school
+      temp$City[i] = city
+    }
+    else{
+      city = vect[i]
+      temp$School[i] = NA
+      temp$City[i] = NA
+    }
+  }
+  return(temp)
+}
+
+N2023 = convert_this(NationalMerit2023, 2023)
+N2022 = convert_this(NationalMerit2022, 2022)
+N2021 = convert_this(NationalMerit2021, 2021)
+N2018 = convert_this(NationalMerit2018, 2018)
+N2016 = convert_this(NationalMerit2016, 2016)
+N2015 = convert_this(NationalMerit2015, 2015)
+
+data = bind_rows(N2023, N2022, N2021, N2018, N2016, N2015) %>%
+  filter(!is.na(School)) %>%
+  tidyr::separate(All, c("LastName","FirstName"), sep = ", ") %>%
+  tidyr::separate(LastName, c(NA, "LastName"), sep = " ") %>%
+  filter(!is.na(LastName))
+```
+
+
+```{r}
+
+table_top = data %>%
+  group_by(City, Year) %>%
+  summarize(Count = n()) %>%
+  tidyr::pivot_wider(names_from = "Year", values_from = "Count", names_sort = TRUE) %>%
+  arrange(desc(`2023`)) %>%
+  ungroup() %>%
+  slice_max(order_by = `2023`, n = 25) %>%
+  mutate(City = stringr::str_to_title(City))
+
+
+data$School[data$School == "HARKER SCHOOL"] = "THE HARKER SCHOOL"
+data$City[data$City == "LA CANADA"] = "LA CANADA FLINTRIDGE"
+
+school_top = data %>%
+  group_by(School, Year) %>%
+  summarize(Count = n()) %>%
+  tidyr::pivot_wider(names_from = "Year", values_from = "Count", names_sort = TRUE) %>%
+  arrange(desc(`2023`)) %>%
+  ungroup() %>%
+  slice_max(order_by = `2023`, n = 20) %>%
+  mutate(School = stringr::str_to_title(School))
+
+get_all = data %>%
+  group_by(Year) %>%
+  summarize(Count = n())
+
+
+table_top = table_top %>%
+  rbind(c("PERCENT TOTAL", round(unlist(lapply(table_top[2:7], sum, na.rm = TRUE))/get_all[[2]], 3)))
+
+school_top = school_top %>%
+  rbind(c("PERCENT TOTAL", round(unlist(lapply(school_top[2:7], sum, na.rm = TRUE))/get_all[[2]], 3)))
+
+```
+
+
+\newpage 
+
+```{r}
+knitr::kable(table_top, caption = "Top Cities by Number of National Merit Semifinalists (PSAT) in California")
+```
+
+\newpage
+
+```{r}
+knitr::kable(school_top, caption = "Top Cities by Number of National Merit Semifinalists (PSAT) in California")
+```

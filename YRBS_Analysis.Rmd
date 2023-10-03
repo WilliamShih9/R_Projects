@@ -1,0 +1,94 @@
+---
+title: "YRBS_Analysis"
+output: pdf_document
+date: "2023-08-31"
+---
+
+```{r}
+library(openxlsx)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+
+get_data = function(file){
+  data = read.xlsx(file, fillMergedCells = TRUE, sep.names = " ",
+                   startRow = 2) 
+  colnames(data)[1] = gsub(" %", "", colnames(data)[1])
+  colnames(data)[2] = gsub(" %", "", colnames(data)[2])
+  data %>%
+    tidyr::pivot_longer(cols = 3:length(data), names_to = c("Year", "Type"), values_to = "Value", 
+                        names_pattern = "([0-9]+)(.*)") %>%
+    mutate(Value = as.numeric(gsub("[^0-9.-]", "", Value)),
+           Type = trimws(Type)) %>%
+    filter(!is.na(.[[1]]) & !is.na(.[[2]])) %>%
+    tidyr::pivot_wider(names_from = "Type", values_from = "Value")%>%
+    filter(Race %in% c("Total", "Asian", "Black", "Hispanic", "White")) %>%
+    mutate(Year = as.numeric(Year)) %>%
+    group_by(Grade) %>%
+    group_split()
+}
+
+data = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS1.xlsx")
+data_NYC = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_NYC.xlsx")
+data_MA = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_Massachusetts.xlsx")
+data_SF = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_SF.xlsx")
+data_LA = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_LA.xlsx")
+data_4 = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_4.xlsx")
+data_NYC_4 = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_NYC_4.xlsx")
+data_LA_4 = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_LA_4.xlsx")
+data_Active = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_Active.xlsx")
+data_Active_NYC = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_Active_NYC.xlsx")
+data_Alcohol = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_Alcohol.xlsx")
+data_Alcohol_NYC = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_Alcohol_NYC.xlsx")
+
+
+plot_data = function(data, place, titl){
+  if (data$Grade[1] == "Total"){
+    data = data %>%
+      mutate(Grade = "9th-12th")
+  }
+  title = paste0(titl, 
+                 data$Grade[1], " Grade\n", " in ", place, " (YRBS Data)")
+  ggplot(data, aes(x = Year, y = `%`, group = Race, color = Race)) +
+    geom_errorbar(aes(ymin = `Lower CI Limit`, ymax = `Upper CI Limit`), width = 0.5) +
+    scale_y_continuous(breaks = scales::breaks_pretty(5), limits = c(0, NA)) +
+    geom_point(size = 2) + geom_line(size = 1) + theme_bw() + ggtitle(title) +
+    ylab("Percentage")
+}
+
+
+
+plots_1 = lapply(data, plot_data, "United States", "Percentage that Ever Had Sexual Intercourse by Race for ")
+plots_2 = lapply(data_NYC, plot_data, "New York City", "Percentage that Ever Had Sexual Intercourse by Race for ")
+plots_3 = lapply(data_MA, plot_data, "Massachusetts", "Percentage that Ever Had Sexual Intercourse by Race for ")
+plots_4 = lapply(data_SF, plot_data, "San Francisco", "Percentage that Ever Had Sexual Intercourse by Race for ")
+plots_5 = lapply(data_LA, plot_data, "Los Angeles", "Percentage that Ever Had Sexual Intercourse by Race for ")
+plots_6 = lapply(data_4, plot_data, "United States", "Percentage that Have 4 Or More Sex Partners by Race for ")
+plots_7 = lapply(data_NYC_4, plot_data, "New York City", "Percentage that Have 4 Or More Sex Partners by Race for ")
+plots_8 = lapply(data_LA_4, plot_data, "Los Angeles", "Percentage that Have 4 Or More Sex Partners by Race for ")
+plots_9 = lapply(data_Active, plot_data, "United States", "Percentage Sexually Active Past 90 Days by Race for ")
+plots_10 = lapply(data_Active_NYC, plot_data, "New York City", "Percentage Sexually Active Past 90 Days by Race for ")
+plots_11 = lapply(data_Alcohol, plot_data, "United States", "Percentage that Drank Alcohol Past 90 Days by Race for ")
+plots_12 = lapply(data_Alcohol_NYC, plot_data, "New York City", "Percentage that Drank Alcohol Past 90 Days by Race for ")
+```
+
+```{r}
+plots_1
+plots_2
+plots_3
+plots_4
+plots_5
+plots_6
+plots_7
+plots_8
+plots_9
+plots_10
+plots_11
+plots_12
+```
+
+
+
+
+

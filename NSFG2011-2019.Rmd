@@ -1,0 +1,1427 @@
+---
+title: "NSFG2011-2019"
+output: pdf_document
+date: "2023-09-02"
+---
+
+# National Survey of Family Growth
+
+The National Survey of Family Growth gathers information on pregnancy, births, marriage and cohabitation, and other components of family life.
+
+https://www.cdc.gov/nchs/nsfg/index.htm
+
+This analysis is focused on the number of lifetime opposite-sex partners.
+
+Four surveys were combined for this analysis (2011-2013, 2013-2015, 2015-2017, and 2017-2019). Information on combining data files can be found here:https://www.cdc.gov/nchs/nsfg/nsfg_combining_data.htm 
+
+The data uses .dat and .dct files, so a large amount of data processing is required to make the data frame rectangular and usable for data analysis. A function called read.dat.dct from Stack Overflow is used to help perform this task. https://stackoverflow.com/questions/14224321/reading-dat-and-dct-directly-from-r
+
+The data uses a complex survey design so I used the package `srvyr` to use `dplyr` commands on survey data. For this data set, I can use the command `as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE)` and then use `survey_mean` or `survey_prop` in order to carry out proper statistical analysis (for creating proper confidence intervals and variances of the results) of the complex survey design. I referenced the "Variance Estimation Examples" from the web page https://www.cdc.gov/nchs/nsfg/nsfg_2017_2019_puf.htm for what results to expect from properly estimating the confidence intervals and the results matched up with the result from using the package `srvyr`.
+
+By far the largest factor that determine number of lifetime opposite-sex partners seem to be mostly the age of first intercourse. The visualizations (Average Number of Opposite-Sex Partners by Age of First Intercourse
+and Age (NSFG 2011-2019) for Males) and (Average Number of Opposite-Sex Partners by Age of First Intercourse
+and Age (NSFG 2011-2019) for Females) show how the average number of sex partners increases by age for each year of age of first intercourse. Of course, another major factor in the number of sex partners is age and the number of sex partner increases up until around the age of 30, where it mostly stabilizes. Other factors that are statistically significant whether one has ever been to prison, whether parents were intact, and drug use. Income and education were not very important in determining the number of lifetime opposite-sex partners.
+
+In the tables below, all numbers in parentheses are 95% confidence intervals for the mean.
+
+```{r, eval = FALSE}
+library(ggplot2)
+library(kableExtra)
+read.dat.dct <- function(dat, dct, labels.included = "no") {
+    temp <- readLines(dct)
+    temp <- temp[grepl("_column", temp)]
+    switch(labels.included,
+           yes = {
+               pattern <- "_column\\(([0-9]+)\\)\\s+([a-z0-9]+)\\s+(.*)\\s+%([0-9]+)[a-z]\\s+(.*)"
+               classes <- c("numeric", "character", "character", "numeric", "character")
+               N <- 5
+               NAMES <- c("StartPos", "Str", "ColName", "ColWidth", "ColLabel")
+           },
+           no = {
+               pattern <- "_column\\(([0-9]+)\\)\\s+([a-z0-9]+)\\s+(.*)\\s+%([0-9]+).*"
+               classes <- c("numeric", "character", "character", "numeric")
+               N <- 4
+               NAMES <- c("StartPos", "Str", "ColName", "ColWidth")
+           })
+    metadata <- setNames(lapply(1:N, function(x) {
+        out <- gsub(pattern, paste("\\", x, sep = ""), temp)
+        out <- gsub("^\\s+|\\s+$", "", out)
+        out <- gsub('\"', "", out, fixed = TRUE)
+        class(out) <- classes[x] ; out }), NAMES)
+
+    metadata[["ColName"]] <- make.names(gsub("\\s", "", metadata[["ColName"]]))
+
+    myDF <- read.fwf(dat, widths = metadata[["ColWidth"]], 
+             col.names = metadata[["ColName"]])
+    if (labels.included == "yes") {
+        attr(myDF, "col.label") <- metadata[["ColLabel"]]
+    }
+    myDF
+
+}
+try_male = read.dat.dct(dat = "C:/Users/willi/Downloads/2011_2013_MaleData.dat",
+                        dct = "C:/Users/willi/Downloads/2011_2013_MaleSetup.dct")
+
+try_female = read.dat.dct(dat = "C:/Users/willi/Downloads/2011_2013_FemRespData.dat",
+                        dct = "C:/Users/willi/Downloads/2011_2013_FemRespSetup.dct")
+
+saveRDS(try_male, file = "Male_NSFG_2011_2013.rds")
+saveRDS(try_female, file = "Female_NSFG_2011_2013.rds")
+
+try_male = read.dat.dct(dat = "C:/Users/willi/Downloads/2013_2015_MaleData.dat",
+                        dct = "C:/Users/willi/Downloads/2013_2015_MaleSetup.dct")
+
+try_female = read.dat.dct(dat = "C:/Users/willi/Downloads/2013_2015_FemRespData.dat",
+                        dct = "C:/Users/willi/Downloads/2013_2015_FemRespSetup.dct")
+
+saveRDS(try_male, file = "Male_NSFG_2013_2015.rds")
+saveRDS(try_female, file = "Female_NSFG_2013_2015.rds")
+
+ren = function(data){
+  data %>%
+  dplyr::rename(caseid = CASEID,
+                                        secu = SECU,
+                                        sest = SEST,
+                                        oppyearnum = OPPYEARNUM,
+                                        nonmonog = NONMONOG,
+                                        hieduc = HIEDUC,
+                                        earn = EARN,
+                                        lifprtnr = LIFPRTNR,
+                                        ager = AGER,
+                                        samesex = SAMESEX,
+                                        samesexany = SAMESEXANY,
+                                        fmarital = FMARITAL,
+                                        genhealt = GENHEALT,
+                                        intctfam = INTCTFAM,
+                intvwyear = INTVWYEAR)
+}
+
+
+#try_male_weights = read.dat.dct(dat = "C:/Users/willi/Downloads/2011_2019_MaleWgtData.dat",
+#                        dct = "C:/Users/willi/Downloads/2011_2019_MaleWgtSetup.dct")
+
+#try_female_weights = read.dat.dct(dat = "C:/Users/willi/Downloads/2011_2019_FemaleWgtData.dat",
+#                        dct = "C:/Users/willi/Downloads/2011_2019_FemaleWgtSetup.dct")
+
+#saveRDS(try_male_weights, file = "Male_NSFG_2011_2019Weights.rds")
+#saveRDS(try_female_weights, file = "Female_NSFG_2011_2019Weights.rds")
+
+#try_male = read.dat.dct(dat = "C:/Users/willi/Downloads/2015_2017_MaleData.dat",
+#                        dct = "C:/Users/willi/Downloads/2015_2017_MaleSetup.dct")
+
+#try_female = read.dat.dct(dat = "C:/Users/willi/Downloads/2015_2017_FemRespData.dat",
+#                        dct = "C:/Users/willi/Downloads/2015_2017_FemRespSetup.dct")
+
+#saveRDS(try_male, file = "Male_NSFG_2015_2017.rds")
+#saveRDS(try_female, file = "Female_NSFG_2015_2017.rds")
+ 
+#try_male = read.dat.dct(dat = "C:/Users/willi/Downloads/2017_2019_MaleData.dat",
+#                        dct = "C:/Users/willi/Downloads/2017_2019_MaleSetup.dct")
+
+#try_female = read.dat.dct(dat = "C:/Users/willi/Downloads/2017_2019_FemRespData.dat",
+#                        dct = "C:/Users/willi/Downloads/2017_2019_FemRespSetup.dct")
+
+#saveRDS(try_male, file = "Male_NSFG_2017_2019.rds")
+#saveRDS(try_female, file = "Female_NSFG_2017_2019.rds")
+```
+
+
+```{r, eval = FALSE}
+male = dplyr::bind_rows(readRDS("G:/My Drive/More Statistics/NSFG2017-2019/Male_NSFG_2017_2019.rds"),
+                        readRDS("G:/My Drive/More Statistics/NSFG2017-2019/Male_NSFG_2015_2017.rds"),
+                        readRDS("G:/My Drive/More Statistics/NSFG2017-2019/Male_NSFG_2013_2015.rds"),
+                        readRDS("G:/My Drive/More Statistics/NSFG2017-2019/Male_NSFG_2011_2013.rds")) %>%
+  dplyr::left_join(readRDS("G:/My Drive/More Statistics/NSFG2017-2019/Male_NSFG_2011_2019Weights.rds"),
+            by = "caseid")
+female = dplyr::bind_rows(readRDS("G:/My Drive/More Statistics/NSFG2017-2019/Female_NSFG_2017_2019.rds"),
+                          readRDS("G:/My Drive/More Statistics/NSFG2017-2019/Female_NSFG_2015_2017.rds"),
+                          readRDS("G:/My Drive/More Statistics/NSFG2017-2019/Female_NSFG_2013_2015.rds"),
+                          readRDS("G:/My Drive/More Statistics/NSFG2017-2019/Female_NSFG_2011_2013.rds")) %>%
+  dplyr::left_join(readRDS("G:/My Drive/More Statistics/NSFG2017-2019/Female_NSFG_2011_2019Weights.rds"),
+            by = "caseid")
+
+
+male = male %>%
+  mutate(Year = dplyr::case_when(
+    !is.na(WGT2011_2013) ~ "2011-2013",
+    !is.na(WGT2013_2015) ~ "2013-2015",
+    !is.na(WGT2015_2017) ~ "2015-2017",
+    !is.na(WGT2017_2019) ~ "2017-2019"
+  ))
+
+female = female %>%
+  mutate(Year = dplyr::case_when(
+    !is.na(WGT2011_2013) ~ "2011-2013",
+    !is.na(WGT2013_2015) ~ "2013-2015",
+    !is.na(WGT2015_2017) ~ "2015-2017",
+    !is.na(WGT2017_2019) ~ "2017-2019"
+  ))
+
+saveRDS(male, file = "Male_NSFG_All.rds")
+saveRDS(female, file = "Female_NSFG_All.rds")
+```
+
+```{r}
+library(ggplot2)
+library(kableExtra)
+library(survey)
+library(srvyr)
+
+male = readRDS("G:/My Drive/More Statistics/NSFG2017-2019/Male_NSFG_All.rds")
+female = readRDS("G:/My Drive/More Statistics/NSFG2017-2019/Female_NSFG_All.rds")
+```
+
+
+```{r}
+male = male %>%
+  mutate(poverty = ifelse(is.na(poverty), POVERTY, poverty),
+         attract = ifelse(is.na(attract), ATTRACT, attract),
+         samyearnum = ifelse(is.na(samyearnum), SAMYEARNUM, samyearnum),
+         msmnonmon = ifelse(is.na(msmnonmon), MSMNONMON, msmnonmon),
+         opplifenum = ifelse(is.na(opplifenum), OPPLIFENUM, opplifenum),
+         Extreme = ifelse(lifprtnr >= 31, 1, 0))
+
+
+female = female %>%
+  mutate(poverty = ifelse(is.na(poverty), POVERTY, poverty),
+         attract = ifelse(is.na(attract), ATTRACT, attract),
+         samyearnum = ifelse(is.na(samyearnum), SAMYEARNUM, samyearnum),
+         femsex = ifelse(is.na(femsex), FEMSEX, femsex),
+         opplifenum = ifelse(is.na(opplifenum), OPPLIFENUM, opplifenum),
+         Extreme = ifelse(lifprtnr >= 31, 1, 0))
+```
+
+
+
+```{r}
+male_logit = male %>%
+  filter(ager >= 21 & ager <= 44 & HISPRACE2 != 3) %>%
+  mutate(Drink12 = ifelse(DRINK12 >= 7 | DRINK12 <= 4, 0, DRINK12),
+         Drink12 = dplyr::case_when(
+            Drink12 == 0 ~ "Less than Weekly",
+            Drink12 == 5 ~ "Every Week",
+            Drink12 == 6 ~ "Every Day"
+         ),
+         Pot12 = dplyr::case_when(
+           POT12 %in% c(1:2,7:9) ~ 0,
+           POT12 %in% c(3:6) ~ 1
+         ),
+         AFI = ifelse(is.na(VRY1STAG), ager + 1, VRY1STAG),
+         Crack12 = ifelse(COC12 %in% c(1, 7:9), 0, 1),
+         Jailed = ifelse(is.na(JAILED2) | JAILED2 %in% c(5,7), 0, 1),
+         Intact = ifelse(INTACT18 == 1, 1, 0),
+         Race = dplyr::recode(HISPRACE2,
+           `1` = "Hispanic",
+           `2` = "Non-Hispanic White",
+           `3` = "Non-Hispanic Black",
+           `4` = "Non-Hispanic Other"),
+         Poverty = ifelse(poverty >= 150, 0, 1),
+         Degree = ifelse(hieduc >= 12, 1, 0),
+         HighEarn = ifelse(!is.na(earn) & earn %in% 14:15, 1, 0),
+         Attract = ifelse(attract >= 6, 1, attract),
+         Weight = WGT2011_2019/mean(WGT2011_2019))
+
+female_logit = female %>%
+  filter(ager >= 21 & ager <= 44 & HISPRACE2 != 3) %>%
+  mutate(Drink12 = ifelse(DRINK12 >= 7 | DRINK12 <= 4, 0, DRINK12),
+         Drink12 = dplyr::case_when(
+            Drink12 == 0 ~ "Less than Weekly",
+            Drink12 == 5 ~ "Every Week",
+            Drink12 == 6 ~ "Every Day"
+         ),
+         Pot12 = dplyr::case_when(
+           POT12 %in% c(1:2,7:9) ~ 0,
+           POT12 %in% c(3:6) ~ 1
+         ),
+         AFI = ifelse(is.na(VRY1STAG), ager + 1, VRY1STAG),
+         Crack12 = ifelse(COC12 %in% c(1, 7:9), 0, 1),
+         Intact = ifelse(INTACT18 == 1, 1, 0),
+         Attract = ifelse(attract >= 6, 1, attract),
+         Race = dplyr::recode(HISPRACE2,
+           `1` = "Hispanic",
+           `2` = "Non-Hispanic White",
+           `3` = "Non-Hispanic Black",
+           `4` = "Non-Hispanic Other"),
+         Poverty = ifelse(poverty >= 150, 0, 1),
+         Degree = ifelse(hieduc >= 12, 1, 0),
+         HighEarn = ifelse(!is.na(earn) & earn %in% 14:15, 1, 0),
+         Weight = WGT2011_2019/mean(WGT2011_2019))
+
+
+male_logit_svy = svydesign(id=~secu,strata=~sest, weights=~WGT2011_2019, data= male_logit, nest = TRUE)
+logit_male_glm = svyglm(Extreme ~ Poverty + AFI + I(AFI^2) + ager + I(ager^2) + Drink12 + Pot12 + Crack12 + Jailed + Intact + Race + Degree + HighEarn + factor(Attract), design = male_logit_svy, family = binomial)
+logit_male_glm2 = glm(Extreme ~ Poverty+ AFI + I(AFI^2) + ager + I(ager^2) + Drink12 + Pot12 + Crack12 + Jailed + Intact + Race + Degree + HighEarn + factor(Attract), data = male_logit, weight = Weight, family = binomial)
+
+
+logit_male_glm_nodrug = svyglm(Extreme ~ Poverty + AFI + I(AFI^2) +  ager + I(ager^2) + Jailed + Intact + Race + Degree + HighEarn + factor(Attract), design = male_logit_svy, family = binomial)
+logit_male_glm_nodrug2 = glm(Extreme ~ Poverty+ AFI + I(AFI^2) + ager + I(ager^2) + Jailed + Intact + Race + Degree + HighEarn + factor(Attract), data = male_logit, weight = Weight, family = binomial)
+
+
+female_logit_svy = svydesign(id=~secu, strata=~sest, weights=~WGT2011_2019, data = female_logit, nest = TRUE)
+logit_female_glm = svyglm(Extreme ~ Poverty + AFI + I(AFI^2) +  ager + I(ager^2) + Drink12 + Pot12 + Crack12 + Intact + Race + Degree + HighEarn + factor(Attract), design = female_logit_svy, family = binomial)
+logit_female_glm2 = glm(Extreme ~ Poverty + AFI + I(AFI^2) +  ager + I(ager^2) + Drink12 + Pot12 + Crack12 + Intact + Race + Degree + HighEarn + factor(Attract), data = female_logit, weight = Weight, family = binomial)
+
+
+logit_female_glm_nodrug = svyglm(Extreme ~ Poverty + AFI + I(AFI^2) +  ager + I(ager^2) + Intact + Race + Degree + HighEarn, design = female_logit_svy, family = binomial)
+
+logit_female_glm_nodrug2 = glm(Extreme ~ Poverty + AFI + I(AFI^2) +  ager + I(ager^2) + Intact + Race + Degree + HighEarn, data = female_logit, weight = Weight, family = binomial)
+
+
+
+pred_male <- expand.grid(ager = 35, AFI = 16:21, Attract = 1, Poverty = 0:1, Drink12 = c("Every Day", "Every Week", "Less than Weekly"),
+                    Pot12 = 0:1, Crack12 = 0:1, Jailed = 0:1, Intact = 0:1,
+                    Race = "Non-Hispanic White", Degree = 0:1, HighEarn = 0:1)
+pred_male = cbind(pred_male, predict(logit_male_glm, type = "response", pred_male))
+#write.csv(pred_male, "PredictMaleExtreme_withAge.csv")
+
+pred_male <- expand.grid(ager = 35, AFI = 16:21,  Attract = 1, Poverty = 0:1, 
+                    Jailed = 0:1, Intact = 0:1,
+                    Race = "Non-Hispanic White", Degree = 0:1, HighEarn = 0:1)
+pred_male = cbind(pred_male, predict(logit_male_glm_nodrug, type = "response", pred_male))
+#write.csv(pred_male, "PredictMaleExtremeNoDrug_withAge.csv")
+
+
+pred_female <- expand.grid(ager = 35, AFI = 16:21, Attract = 1, Poverty = 0:1, Drink12 = c("Every Day", "Every Week", "Less than Weekly"),
+                    Pot12 = 0:1, Crack12 = 0:1, Intact = 0:1,
+                    Race = "Non-Hispanic White", Degree = 0:1, HighEarn = 0:1)
+pred_female = cbind(pred_female, predict(logit_female_glm, type = "response", pred_female))
+#write.csv(pred_female, "PredictFemaleExtreme_withAge.csv")
+
+pred_female <- expand.grid(ager = 35, AFI = 16:21, Poverty = 0:1, 
+                    Intact = 0:1,
+                    Race = "Non-Hispanic White", Degree = 0:1, HighEarn = 0:1)
+pred_female = cbind(pred_female, predict(logit_female_glm_nodrug, type = "response", pred_female))
+#write.csv(pred_female, "PredictFemaleExtremeNoDrug_withAge.csv")
+
+
+```
+
+
+```{r}
+extreme_male = male %>%
+  filter(ager >= 30 & ager <= 44) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(Extreme = ifelse(lifprtnr >= 31, 1, 0),
+         Extreme50 = ifelse(lifprtnr >= 50, 1, 0),
+          Edu = ifelse(hieduc >= 12, 1, 0),
+         Intact = ifelse(INTACT18 >= 8, 1, INTACT18),
+         Income = ifelse(!is.na(earn) & earn %in% 13:15, 1, 0),
+         Poverty = ifelse(poverty >= 400, 1, 0))  %>%
+  group_by(HISPRACE2, Edu) %>%
+  summarise(Extreme = survey_mean(Extreme, vartype = "ci"),
+            Extreme50 = survey_mean(Extreme50, vartype = "ci"))
+
+extreme_female = female %>%
+  filter(ager >= 30 & ager <= 44) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(Extreme = ifelse(lifprtnr >= 31, 1, 0),
+         Extreme50 = ifelse(lifprtnr >= 50, 1, 0),
+          Edu = ifelse(hieduc >= 12, 1, 0),
+         Intact = ifelse(INTACT18 >= 8, 1, INTACT18),
+         Income = ifelse(!is.na(earn) & earn %in% 13:15, 1, 0),
+         Poverty = ifelse(poverty >= 400, 1, 0))  %>%
+  group_by(HISPRACE2, Edu) %>%
+  summarise(Extreme = survey_mean(Extreme, vartype = "ci"),
+            Extreme50 = survey_mean(Extreme50, vartype = "ci"))
+
+
+extreme_male$Sex = "Male"
+extreme_female$Sex = "Female"
+
+extreme = dplyr::bind_rows(extreme_male, extreme_female) %>%
+  ungroup() %>%
+  mutate(`Percent >= 31` = paste0(formatC(Extreme* 100, format = "f", digits = 1), "%",  " (",
+                   formatC(Extreme_low* 100, format = "f", digits = 1), "%",", ",
+                   formatC(Extreme_upp* 100, format = "f", digits = 1), "%",")"),
+         `Percent >= 50` = paste0(formatC(Extreme50 * 100, format = "f", digits = 1), "%",  " (",
+                   formatC(Extreme50_low* 100, format = "f", digits = 1), "%",", ",
+                   formatC(Extreme50_upp* 100, format = "f", digits = 1), "%",")"),
+          Education = dplyr::recode(Edu, `0` = "No Degree", `1` = "Has Bachelor's"),
+         Race = dplyr::recode(HISPRACE2,
+             `1` = "Hispanic",
+             `2` = "Non-Hispanic White",
+             `3` = "Non-Hispanic Black",
+             `4` = "Non-Hispanic Other")) %>%
+  dplyr::select(Race, Education, Sex, `Percent >= 31`, `Percent >= 50`)
+```
+
+
+```{r}
+male_reg_svy = svydesign(id=~secu,strata=~sest, weights=~WGT2011_2019, data= male %>% filter(ager <= 44 & HISPRACE2 != 3), nest = TRUE)
+regress_male = svyglm(lifprtnr ~ VRY1STAG + I(VRY1STAG^2) + VRY1STAG*ager + VRY1STAG:I(ager^2) + ager + I(ager^2) + I(ager^3) + I(VRY1STAG^2)*ager, design = male_reg_svy)
+
+female_reg_svy = svydesign(id=~secu,strata=~sest, weights=~WGT2011_2019, data= female %>% filter(ager <= 44 & HISPRACE2 != 3), nest = TRUE)
+regress_female = svyglm(lifprtnr ~ VRY1STAG + I(VRY1STAG^2) + VRY1STAG*ager + VRY1STAG:I(ager^2) + ager + I(ager^2) + I(ager^3) , design = female_reg_svy)
+
+
+pred = expand.grid(VRY1STAG = 15:21, ager = 16:40)
+res_m = cbind(pred, predict(regress_male, pred)) %>%
+  tibble::tibble() %>%
+  mutate(AFI = factor(VRY1STAG))
+plot_m = ggplot(res_m, aes(x = ager, y = link, color = AFI, group = AFI)) +
+  geom_line() + geom_point() + theme_bw() + 
+  scale_y_continuous(breaks = seq(0, 20, 2), limits = c(-1, NA)) +
+  xlab("Age") + ylab("Average Number of Opposite-Sex Partners") +
+  ggtitle("Average Number of Opposite-Sex Partners by Age of First Intercourse \n and Age (NSFG 2011-2019) for Males")
+
+pred = expand.grid(VRY1STAG = 15:21, ager = 16:40)
+res_f = cbind(pred, predict(regress_female, pred)) %>%
+  tibble::tibble() %>%
+  mutate(AFI = factor(VRY1STAG))
+plot_f = ggplot(res_f, aes(x = ager, y = link, color = AFI, group = AFI)) +
+  geom_line() + geom_point() + theme_bw()  +
+  scale_y_continuous(breaks = seq(0, 10, 2), limits = c(-1, NA)) +
+  xlab("Age") + ylab("Average Number of Opposite-Sex Partners") +
+  ggtitle("Average Number of Opposite-Sex Partners by Age of First Intercourse \n and Age (NSFG 2011-2019) for Females")
+
+
+comb = dplyr::bind_rows(res_m %>% mutate(Sex = "Male"), res_f %>% mutate(Sex = "Female"))
+
+age_18 = comb %>%
+  filter(AFI == 18) %>%
+  ggplot(aes(x = ager, y = link, color = Sex, group = Sex)) +
+  geom_line() + geom_point() + theme_bw() + 
+  scale_x_continuous(breaks = seq(16, 44, 4)) +
+  scale_y_continuous(breaks = seq(0, 20, 2), limits = c(-1, NA)) +
+  xlab("Age") + ylab("Average Number of Opposite-Sex Partners") +
+  ggtitle("Average Number of Opposite-Sex Partners by Age \n if Age of First Intercourse is 18 (NSFG 2011-2019)")
+
+age_19 = comb %>%
+  filter(AFI == 19) %>%
+  ggplot(aes(x = ager, y = link, color = Sex, group = Sex)) +
+  geom_line() + geom_point() + theme_bw() + 
+  scale_x_continuous(breaks = seq(16, 44, 4)) +
+  scale_y_continuous(breaks = seq(0, 20, 2), limits = c(-1, NA)) +
+  xlab("Age") + ylab("Average Number of Opposite-Sex Partners") +
+  ggtitle("Average Number of Opposite-Sex Partners by Age \n if Age of First Intercourse is 19 (NSFG 2011-2019)")
+
+age_20 = comb %>%
+  filter(AFI == 20) %>%
+  ggplot(aes(x = ager, y = link, color = Sex, group = Sex)) +
+  geom_line() + geom_point() + theme_bw() + 
+  scale_x_continuous(breaks = seq(16, 44, 4)) +
+  scale_y_continuous(breaks = seq(0, 20, 2), limits = c(-1, NA)) +
+  xlab("Age") + ylab("Average Number of Opposite-Sex Partners") +
+  ggtitle("Average Number of Opposite-Sex Partners by Age \n if Age of First Intercourse is 20 (NSFG 2011-2019)")
+
+age_17 = comb %>%
+  filter(AFI == 17) %>%
+  ggplot(aes(x = ager, y = link, color = Sex, group = Sex)) +
+  geom_line() + geom_point() + theme_bw() + 
+  scale_x_continuous(breaks = seq(16, 44, 4)) +
+  scale_y_continuous(breaks = seq(0, 20, 2), limits = c(-1, NA)) +
+  xlab("Age") + ylab("Average Number of Opposite-Sex Partners") +
+  ggtitle("Average Number of Opposite-Sex Partners by Age \n if Age of First Intercourse is 17 (NSFG 2011-2019)")
+
+
+
+```
+
+
+```{r}
+bornout_male = male %>%
+    filter(ager >= 22 & ager <= 35) %>%
+    as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+    mutate(goschol = ifelse(is.na(goschol), GOSCHOL, goschol),
+           brnout = ifelse(is.na(brnout), BRNOUT, brnout),
+           brnout = ifelse(brnout >= 8, 5, brnout),
+           BornOut = ifelse(brnout == 1, "Yes", "No"),
+           eversex = ifelse(is.na(eversex), EVERSEX, eversex),
+           goschol = ifelse(goschol == 1, "College", "Not in College"),
+           Zero = ifelse(oppyearnum == 0 | is.na(oppyearnum), 1, 0),
+           One = ifelse(oppyearnum == 1 & !is.na(oppyearnum), 1, 0),
+           Two = ifelse(oppyearnum >= 2 & oppyearnum <= 20 & !is.na(oppyearnum), 1, 0),
+           Monog = ifelse(nonmonog==1& !is.na(nonmonog), 1, 0),
+           INTACT18 = ifelse(INTACT18 == 1, "Yes", "No"), Edu = ifelse(hieduc >= 12, 1, 0)) %>%
+    group_by(Edu, BornOut, HISPRACE2) %>%
+    summarise(Zero = 100*survey_mean(Zero, vartype = "ci"),
+              One = 100*survey_mean(One, vartype = "ci"),
+              Two = 100*survey_mean(Two, vartype = "ci"),
+              Monog = 100*survey_mean(Monog, vartype = "ci"))
+bornout_female = female %>%
+    filter(ager >= 22 & ager <= 35) %>%
+    as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+    mutate(goschol = ifelse(is.na(goschol), GOSCHOL, goschol),
+           brnout = ifelse(is.na(brnout), BRNOUT, brnout),
+           brnout = ifelse(brnout >= 8, 5, brnout),
+           BornOut = ifelse(brnout == 1, "Yes", "No"),
+           eversex = ifelse(is.na(eversex), EVERSEX, eversex),
+           goschol = ifelse(goschol == 1, "College", "Not in College"),
+           Zero = ifelse(oppyearnum == 0 | is.na(oppyearnum), 1, 0),
+           One = ifelse(oppyearnum == 1 & !is.na(oppyearnum), 1, 0),
+           Two = ifelse(oppyearnum >= 2 & oppyearnum <= 20 & !is.na(oppyearnum), 1, 0),
+           Monog = ifelse(nonmonog==1& !is.na(nonmonog), 1, 0),
+           INTACT18 = ifelse(INTACT18 == 1, "Yes", "No"), Edu = ifelse(hieduc >= 12, 1, 0)) %>%
+    group_by(Edu, BornOut, HISPRACE2) %>%
+    summarise(Zero = 100*survey_mean(Zero, vartype = "ci"),
+              One = 100*survey_mean(One, vartype = "ci"),
+              Two = 100*survey_mean(Two, vartype = "ci"),
+              Monog = 100*survey_mean(Monog, vartype = "ci"))
+```
+
+
+```{r}
+male_young = male %>% filter(ager >= 22 & ager <= 30) %>%
+    as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  group_by(lsexprac, HISPRACE2) %>%
+  summarise(Total = survey_total(),
+            Prop = survey_prop())
+
+female_young = female %>% filter(ager >= 22 & ager <= 30) %>%
+    as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  group_by(HISPRACE2) %>%
+  summarise(Total = survey_total(),
+            Prop = survey_prop())
+
+
+male_young = male %>% filter(ager >= 18 & ager <= 30)  %>%
+    as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  group_by(HISPRACE2) %>%
+  summarise(Total = survey_total(),
+            Prop = survey_prop())
+
+bornout_male2 = male %>%
+    filter(ager >= 26 & ager <= 39) %>%
+    as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+    mutate(goschol = ifelse(is.na(goschol), GOSCHOL, goschol),
+           brnout = ifelse(is.na(brnout), BRNOUT, brnout),
+           Monog = ifelse(nonmonog==1& !is.na(nonmonog), 1, 0),
+           brnout = ifelse(brnout >= 8, 5, brnout),
+           BornOut = ifelse(brnout == 1, "Yes", "No"), 
+           Edu = ifelse(hieduc >= 13, 1, 0)) %>%
+    group_by(Edu, BornOut, HISPRACE2) %>%
+    summarise(Mean = survey_mean(lifprtnr, vartype = "ci"),
+              Median = survey_median(lifprtnr, vartype = "ci"),
+              Monog = 100*survey_mean(Monog, vartype = "ci"))
+bornout_female2 = female %>%
+    filter(ager >= 26 & ager <= 39) %>%
+    as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+    mutate(goschol = ifelse(is.na(goschol), GOSCHOL, goschol),
+           brnout = ifelse(is.na(brnout), BRNOUT, brnout),
+           brnout = ifelse(brnout >= 8, 5, brnout),
+           Monog = ifelse(nonmonog==1& !is.na(nonmonog), 1, 0),
+           BornOut = ifelse(brnout == 1, "Yes", "No"), 
+           Edu = ifelse(hieduc >= 12, 1, 0)) %>%
+    group_by(Edu, BornOut, HISPRACE2) %>%
+    summarise(Mean = survey_mean(lifprtnr, vartype = "ci"),
+              Median = survey_median(lifprtnr, vartype = "ci"),
+              Monog = 100*survey_mean(Monog, vartype = "ci"))
+```
+
+
+```{r}
+school_male = male %>%
+  filter(ager >= 19 & ager <= 23) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(goschol = ifelse(is.na(goschol), GOSCHOL, goschol),
+         eversex = ifelse(is.na(eversex), EVERSEX, eversex),
+         goschol = ifelse(goschol == 1, "College", "Not in College"),
+         Zero = ifelse(oppyearnum == 0 | is.na(oppyearnum), 1, 0),
+         One = ifelse(oppyearnum == 1 & !is.na(oppyearnum), 1, 0),
+         Two = ifelse(oppyearnum >= 2 & oppyearnum <= 20 & !is.na(oppyearnum), 1, 0),
+         Monog = ifelse(nonmonog==1& !is.na(nonmonog), 1, 0),
+         INTACT18 = ifelse(INTACT18 == 1, "Yes", "No")) %>%
+  group_by(goschol, INTACT18) %>%
+  summarise(Zero = survey_mean(Zero, vartype = "ci"),
+            One = survey_mean(One, vartype = "ci"),
+            Two = survey_mean(Two, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci"))
+
+school_female = female %>%
+  filter(ager >= 19 & ager <= 23) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(goschol = ifelse(is.na(goschol), GOSCHOL, goschol),
+         One = ifelse(oppyearnum == 1 & !is.na(oppyearnum), 1, 0),
+         goschol = ifelse(goschol == 1, "College", "Not in College"),
+         Zero = ifelse(oppyearnum == 0 | is.na(oppyearnum), 1, 0),
+         Two = ifelse(oppyearnum >= 2 & oppyearnum <= 20 & !is.na(oppyearnum), 1, 0),
+         Monog = ifelse(nonmonog==1& !is.na(nonmonog), 1, 0),
+         INTACT18 = ifelse(INTACT18 == 1, "Yes", "No"),
+         oppyearnum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum)) %>%
+  group_by(goschol, INTACT18) %>%
+  summarise(Zero = survey_mean(Zero, vartype = "ci"),
+            One = survey_mean(One, vartype = "ci"),
+            Two = survey_mean(Two, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci"))
+
+school_male$Sex = "Male"
+school_female$Sex = "Female"
+school = dplyr::bind_rows(school_male, school_female) %>%
+  ungroup() %>%
+  mutate(`Percent = 0` = paste0(formatC(Zero* 100, format = "f", digits = 0), "%",  " (",
+                   formatC(Zero_low* 100, format = "f", digits = 0), "%",", ",
+                   formatC(Zero_upp* 100, format = "f", digits = 0), "%",")"),
+         `Percent = 1` = paste0(formatC(One* 100, format = "f", digits = 0), "%",  " (",
+                   formatC(One_low* 100, format = "f", digits = 0), "%",", ",
+                   formatC(One_upp* 100, format = "f", digits = 0), "%",")"),
+         `Percent >= 2` = paste0(formatC(Two* 100, format = "f", digits = 0), "%",  " (",
+                   formatC(Two_low* 100, format = "f", digits = 0), "%",", ",
+                   formatC(Two_upp* 100, format = "f", digits = 0), "%",")"),
+         `Non-monogamous` = paste0(formatC(Monog* 100, format = "f", digits = 0), "%",  " (",
+                   formatC(Monog_low* 100, format = "f", digits = 0), "%",", ",
+                   formatC(Monog_upp* 100, format = "f", digits = 0), "%",")"),
+         Intact = INTACT18,
+         School = goschol) %>%
+  dplyr::select(School, Intact, Sex, `Percent = 0`, `Percent = 1`, `Percent >= 2`, `Non-monogamous`)
+```
+
+
+```{r}
+prepare_male = male %>%
+  filter(ager >= 18 & !is.na(VRY1STAG)) %>%
+  mutate(oppyearnum = ifelse(oppyearnum >= 997, 1, oppyearnum),
+         intctfam = ifelse(intctfam >= 8, 2, intctfam),
+         nonmonog = ifelse(is.na(nonmonog) | nonmonog %in% c(7:9), 5, nonmonog),
+         nonmonog = ifelse(nonmonog == 5, 1, 0),
+         sexfreq = ifelse(is.na(sexfreq) | sexfreq >= 100, 1, sexfreq),
+         earn = ifelse(is.na(earn) | earn >= 97, 10, earn),
+         hieduc = ifelse(hieduc >= 3 & hieduc <= 8, 0, hieduc - 8),
+         hieduc = ifelse(hieduc >= 3, 5, hieduc),
+         genhealt = ifelse(genhealt >= 7, 4, genhealt),
+         JAILED2 = ifelse(is.na(JAILED2) | JAILED2 >= 7, 5, JAILED2),
+         JAILED2 = ifelse(JAILED2 == 5, 0, 1),
+         dateapp = ifelse(dateapp >= 7, 5, dateapp),
+         samesex = ifelse(samesex %in% c(8:9), 5, samesex),
+         samesexany = ifelse(is.na(samesexany) | samesexany >= 6, 5, samesexany),
+         casual = ifelse(nonmonog == 1 & dateapp == 1, 1, 0),
+         attract = ifelse(attract >= 6, 1, attract))  
+
+
+model_male = lm(lifprtnr ~ VRY1STAG + I(VRY1STAG^2) + ager + I(ager^2) + factor(intctfam) + factor(Year) + factor(HISPRACE2) + oppyearnum + I(oppyearnum^2) + factor(attract) + factor(nonmonog) + sexfreq + poverty + I(poverty^2) + factor(hieduc) + factor(genhealt) + VRY1STAG:sexfreq + factor(JAILED2) + factor(samesex) + factor(samesexany) + factor(fmarital), data = prepare_male, weights = WGT2011_2019)
+
+prepare_female = female %>%
+  filter(ager >= 20 & !is.na(VRY1STAG)) %>%
+  mutate(oppyearnum = ifelse(oppyearnum >= 997, 1, oppyearnum),
+         intctfam = ifelse(intctfam >= 8, 2, intctfam),
+         nonmonog = ifelse(is.na(nonmonog) | nonmonog %in% c(7:9), 5, nonmonog),
+         nonmonog = ifelse(nonmonog == 5, 1, 0),
+         earn = ifelse(is.na(earn) | earn >= 97, 10, earn),
+         hieduc = ifelse(hieduc >= 3 & hieduc <= 8, 0, hieduc - 8),
+         hieduc = ifelse(hieduc >= 3, 5, hieduc),
+         genhealt = ifelse(genhealt >= 7, 4, genhealt),
+         dateapp = ifelse(dateapp >= 7, 5, dateapp),
+         samesex = ifelse(samesex %in% c(8:9), 5, samesex),
+         samesexany = ifelse(is.na(samesexany) | samesexany >= 6, 5, samesexany),
+         casual = ifelse(nonmonog == 1 & dateapp == 1, 1, 0),
+         attract = ifelse(attract >= 6, 1, attract))    
+
+
+model_female = lm(lifprtnr ~ VRY1STAG + I(VRY1STAG^2) + ager + I(ager^2) + factor(intctfam) + factor(Year) + factor(HISPRACE2) + oppyearnum + I(oppyearnum^2) + factor(nonmonog) + factor(attract) + poverty + I(poverty^2) + factor(hieduc) + factor(genhealt)  + factor(samesex) + factor(samesexany) + factor(fmarital), data = prepare_female, weights = WGT2011_2019)
+
+
+model_male_year = lm(oppyearnum ~ VRY1STAG + I(VRY1STAG^2) + ager + I(ager^2) + factor(intctfam) + factor(Year) + factor(HISPRACE2) + sexfreq + poverty + I(poverty^2) + factor(hieduc) + factor(attract) + factor(genhealt) + VRY1STAG:sexfreq + factor(JAILED2) + factor(samesex) + factor(samesexany), data = prepare_male, weights = WGT2011_2019)
+
+model_female_year = lm(oppyearnum ~ VRY1STAG + I(VRY1STAG^2) + ager + I(ager^2) + factor(intctfam) + factor(Year) + factor(HISPRACE2) + poverty + I(poverty^2) + factor(hieduc) + factor(genhealt) +  factor(attract) + factor(samesex) + factor(samesexany), data = prepare_male, weights = WGT2011_2019)
+```
+
+```{r, eval = FALSE}
+okay = female%>%
+    filter(ager >= 25 & ager <= 44) %>%
+    as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+    group_by(attract, lifprtnr) %>% 
+    summarise(Prop = survey_quantile(lifprtnr, c(0.25,0.5,0.75,0.90)))
+
+```
+
+
+
+
+```{r}
+
+male_overall = male %>%
+  filter(ager >= 25 & ager <= 44) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(nonmonog == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0)) %>%
+  group_by(Year) %>%
+  summarise(LifeMean = survey_mean(lifprtnr, vartype = "ci"),
+            YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+female_overall = female %>%
+  filter(ager >= 25 & ager <= 44) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(nonmonog == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0)) %>%
+  group_by(Year) %>%
+  summarise(LifeMean = survey_mean(lifprtnr, vartype = "ci"),
+            YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+male_overall$Sex = "Male"
+female_overall$Sex = "Female"
+overall = dplyr::bind_rows(male_overall, female_overall) %>%
+  mutate(LifeMean = paste0(formatC(LifeMean, format = "f", digits = 2), " (",
+                           formatC(LifeMean_low, format = "f", digits = 2), ", ",
+                           formatC(LifeMean_upp, format = "f", digits = 2), ")"),
+         YearMean = paste0(formatC(YearMean, format = "f", digits = 2), " (",
+                           formatC(YearMean_low, format = "f", digits = 2), ", ",
+                           formatC(YearMean_upp, format = "f", digits = 2), ")"),
+         `Percent >= 2` = paste0(formatC(Prop2 * 100, format = "f", digits = 1), "% (",
+                           formatC(Prop2_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Prop2_upp * 100, format = "f", digits = 1), "%)"),
+         `Non-monogamous` = paste0(formatC(Monog * 100, format = "f", digits = 1), "% (",
+                           formatC(Monog_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Monog_upp * 100, format = "f", digits = 1), "%)")) %>%
+  dplyr::select(Year, Sex, LifeMean, YearMean, `Percent >= 2`, `Non-monogamous`)
+```
+
+
+
+```{r}
+male_young = male %>%
+  filter(ager >= 18 & ager <= 34) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(nonmonog == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0),
+         Extra = ifelse(!is.na(oppyearnum) & oppyearnum >= 3 & oppyearnum < 50, 1, 0)) %>%
+  group_by(Year) %>%
+  summarise(YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Prop5 = survey_mean(Extra, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+female_young = female %>%
+  filter(ager >= 18 & ager <= 34) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(nonmonog == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0),
+         Extra = ifelse(!is.na(oppyearnum) & oppyearnum >= 3 & oppyearnum < 50, 1, 0)) %>%
+  group_by(Year) %>%
+  summarise(YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Prop5 = survey_mean(Extra, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+male_young$Sex = "Male"
+female_young$Sex = "Female"
+young = dplyr::bind_rows(male_young, female_young) %>%
+  mutate(YearMean = paste0(formatC(YearMean, format = "f", digits = 2), " (",
+                           formatC(YearMean_low, format = "f", digits = 2), ", ",
+                           formatC(YearMean_upp, format = "f", digits = 2), ")"),
+         `Percent >= 2` = paste0(formatC(Prop2 * 100, format = "f", digits = 0), "% (",
+                           formatC(Prop2_low * 100, format = "f", digits = 0), "%, ",
+                           formatC(Prop2_upp * 100, format = "f", digits = 0), "%)"),
+          `Percent >= 3` = paste0(formatC(Prop5 * 100, format = "f", digits = 1), "% (",
+                           formatC(Prop5_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Prop5_upp * 100, format = "f", digits = 1), "%)"),
+         `Non-monogamous` = paste0(formatC(Monog * 100, format = "f", digits = 1), "% (",
+                           formatC(Monog_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Monog_upp * 100, format = "f", digits = 1), "%)")) %>%
+  dplyr::select(Year, Sex, YearMean, `Percent >= 2`, `Percent >= 3`, `Non-monogamous`)
+```
+
+
+
+```{r}
+male_intact = male %>%
+  filter(ager >= 18 & ager <= 34) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(!is.na(oppyearnum) & oppyearnum == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0),
+         Extra = ifelse(!is.na(oppyearnum) & oppyearnum >= 3 & oppyearnum < 50, 1, 0)) %>%
+  group_by(intctfam) %>%
+  summarise(YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Prop5 = survey_mean(Extra, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+female_intact = female %>%
+  filter(ager >= 18 & ager <= 34) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(!is.na(oppyearnum) & oppyearnum == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0),
+         Extra = ifelse(!is.na(oppyearnum) & oppyearnum >= 3 & oppyearnum < 50, 1, 0)) %>%
+  group_by(intctfam) %>%
+  summarise(YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Prop5 = survey_mean(Extra, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+male_intact$Sex = "Male"
+female_intact$Sex = "Female"
+intact = dplyr::bind_rows(male_intact, female_intact) %>%
+  mutate(Intact = dplyr::recode(intctfam, `1` = "Intact", `2` = "Not Intact"),
+          YearMean = paste0(formatC(YearMean, format = "f", digits = 2), " (",
+                           formatC(YearMean_low, format = "f", digits = 2), ", ",
+                           formatC(YearMean_upp, format = "f", digits = 2), ")"),
+         `Percent >= 2` = paste0(formatC(Prop2 * 100, format = "f", digits = 0), "% (",
+                           formatC(Prop2_low * 100, format = "f", digits = 0), "%, ",
+                           formatC(Prop2_upp * 100, format = "f", digits = 0), "%)"),
+          `Percent >= 3` = paste0(formatC(Prop5 * 100, format = "f", digits = 1), "% (",
+                           formatC(Prop5_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Prop5_upp * 100, format = "f", digits = 1), "%)"),
+         `Percent = 1` = paste0(formatC(Monog * 100, format = "f", digits = 1), "% (",
+                           formatC(Monog_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Monog_upp * 100, format = "f", digits = 1), "%)")) %>%
+  dplyr::select(Intact, Sex, YearMean, `Percent = 1`, `Percent >= 2`, `Percent >= 3`)
+```
+
+
+```{r}
+male_race = male %>%
+  filter(ager >= 18 & ager <= 34) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(!is.na(oppyearnum) & oppyearnum == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0),
+         Extra = ifelse(!is.na(oppyearnum) & oppyearnum >= 3 & oppyearnum < 50, 1, 0)) %>%
+  group_by(HISPRACE2) %>%
+  summarise(YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Prop5 = survey_mean(Extra, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+female_race = female %>%
+  filter(ager >= 18 & ager <= 34) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(!is.na(oppyearnum) & oppyearnum == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0),
+         Extra = ifelse(!is.na(oppyearnum) & oppyearnum >= 3 & oppyearnum < 50, 1, 0)) %>%
+  group_by(HISPRACE2) %>%
+  summarise(YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Prop5 = survey_mean(Extra, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+male_race$Sex = "Male"
+female_race$Sex = "Female"
+race = dplyr::bind_rows(male_race, female_race) %>%
+  mutate(Race = dplyr::recode(HISPRACE2,
+   `1` = "Hispanic",
+   `2` = "Non-Hispanic White",
+   `3` = "Non-Hispanic Black",
+   `4` = "Non-Hispanic Other"),
+          YearMean = paste0(formatC(YearMean, format = "f", digits = 2), " (",
+                           formatC(YearMean_low, format = "f", digits = 2), ", ",
+                           formatC(YearMean_upp, format = "f", digits = 2), ")"),
+         `Percent >= 2` = paste0(formatC(Prop2 * 100, format = "f", digits = 0), "% (",
+                           formatC(Prop2_low * 100, format = "f", digits = 0), "%, ",
+                           formatC(Prop2_upp * 100, format = "f", digits = 0), "%)"),
+          `Percent >= 3` = paste0(formatC(Prop5 * 100, format = "f", digits = 1), "% (",
+                           formatC(Prop5_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Prop5_upp * 100, format = "f", digits = 1), "%)"),
+         `Percent = 1` = paste0(formatC(Monog * 100, format = "f", digits = 1), "% (",
+                           formatC(Monog_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Monog_upp * 100, format = "f", digits = 1), "%)")) %>%
+  dplyr::select(Race, Sex, YearMean, `Percent = 1`, `Percent >= 2`, `Percent >= 3`)
+```
+
+```{r}
+male_overall_race = male %>%
+  filter(ager >= 25 & ager <= 44) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(Race = dplyr::recode(HISPRACE2,
+   `1` = "Hispanic",
+   `2` = "Non-Hispanic White",
+   `3` = "Non-Hispanic Black",
+   `4` = "Non-Hispanic Other"),YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(nonmonog == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0)) %>%
+  group_by(Year, Race) %>%
+  summarise(LifeMean = survey_mean(lifprtnr, vartype = "ci"),
+            YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+female_overall_race = female %>%
+  filter(ager >= 25 & ager <= 44) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(Race = dplyr::recode(HISPRACE2,
+   `1` = "Hispanic",
+   `2` = "Non-Hispanic White",
+   `3` = "Non-Hispanic Black",
+   `4` = "Non-Hispanic Other"),YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(nonmonog == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0)) %>%
+  group_by(Year, Race) %>%
+  summarise(LifeMean = survey_mean(lifprtnr, vartype = "ci"),
+            YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+male_overall_race$Sex = "Male"
+female_overall_race$Sex = "Female"
+overall_race = dplyr::bind_rows(male_overall_race, female_overall_race) %>%
+  mutate(LifeMean = paste0(formatC(LifeMean, format = "f", digits = 2), " (",
+                           formatC(LifeMean_low, format = "f", digits = 2), ", ",
+                           formatC(LifeMean_upp, format = "f", digits = 2), ")"),
+         YearMean = paste0(formatC(YearMean, format = "f", digits = 2), " (",
+                           formatC(YearMean_low, format = "f", digits = 2), ", ",
+                           formatC(YearMean_upp, format = "f", digits = 2), ")"),
+         `Percent >= 2` = paste0(formatC(Prop2 * 100, format = "f", digits = 1), "% (",
+                           formatC(Prop2_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Prop2_upp * 100, format = "f", digits = 1), "%)"),
+         `Non-monogamous` = paste0(formatC(Monog * 100, format = "f", digits = 1), "% (",
+                           formatC(Monog_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Monog_upp * 100, format = "f", digits = 1), "%)")) %>%
+  dplyr::select(Year, Race, Sex, LifeMean, YearMean, `Percent >= 2`)
+```
+
+
+
+```{r}
+male_edu_race = male %>%
+  filter(ager >= 25 & ager <= 44) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(Race = dplyr::recode(HISPRACE2,
+   `1` = "Hispanic",
+   `2` = "Non-Hispanic White",
+   `3` = "Non-Hispanic Black",
+   `4` = "Non-Hispanic Other"),
+   Edu = dplyr::recode(hieduc,
+   `5` = "1.Less than HS",
+   `6` = "1.Less than HS",
+   `7` = "1.Less than HS",
+   `8` = "1.Less than HS",
+   `9` = "2.HS Graduate",
+  `10` = "2.HS Graduate",
+  `11` = "2.HS Graduate",
+  `12` = "3.Bachelor's Degree",
+  `13` = "3.Bachelor's Degree",
+  `14` = "3.Bachelor's Degree",
+  `15` = "3.Bachelor's Degree"),
+  YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(nonmonog == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0)) %>%
+  group_by(Edu, Race) %>%
+  summarise(LifeMean = survey_mean(lifprtnr, vartype = "ci"),
+            YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+female_edu_race = female %>%
+  filter(ager >= 25 & ager <= 44) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(Race = dplyr::recode(HISPRACE2,
+   `1` = "Hispanic",
+   `2` = "Non-Hispanic White",
+   `3` = "Non-Hispanic Black",
+   `4` = "Non-Hispanic Other"),
+   Edu = dplyr::recode(hieduc,
+   `5` = "1.Less than HS",
+   `6` = "1.Less than HS",
+   `7` = "1.Less than HS",
+   `8` = "1.Less than HS",
+   `9` = "2.HS Graduate",
+  `10` = "2.HS Graduate",
+  `11` = "2.HS Graduate",
+  `12` = "3.Bachelor's Degree",
+  `13` = "3.Bachelor's Degree",
+  `14` = "3.Bachelor's Degree",
+  `15` = "3.Bachelor's Degree"),
+  YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(nonmonog == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0)) %>%
+   group_by(Edu, Race) %>%
+  summarise(LifeMean = survey_mean(lifprtnr, vartype = "ci"),
+            YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+male_edu_race$Sex = "Male"
+female_edu_race$Sex = "Female"
+edu_race = dplyr::bind_rows(male_edu_race, female_edu_race) %>%
+  mutate(LifeMean = paste0(formatC(LifeMean, format = "f", digits = 2), " (",
+                           formatC(LifeMean_low, format = "f", digits = 2), ", ",
+                           formatC(LifeMean_upp, format = "f", digits = 2), ")"),
+         YearMean = paste0(formatC(YearMean, format = "f", digits = 2), " (",
+                           formatC(YearMean_low, format = "f", digits = 2), ", ",
+                           formatC(YearMean_upp, format = "f", digits = 2), ")"),
+         `Percent >= 2` = paste0(formatC(Prop2 * 100, format = "f", digits = 1), "% (",
+                           formatC(Prop2_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Prop2_upp * 100, format = "f", digits = 1), "%)")) %>%
+  dplyr::select(Edu, Race, Sex, LifeMean, YearMean, `Percent >= 2`)
+```
+
+```{r}
+male_income_race = male %>%
+  filter(ager >= 25 & ager <= 44) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(Race = dplyr::recode(HISPRACE2,
+   `1` = "Hispanic",
+   `2` = "Non-Hispanic White",
+   `3` = "Non-Hispanic Black",
+   `4` = "Non-Hispanic Other"),
+   Income = dplyr::case_when(
+     poverty < 150 ~ "0-150%",
+     poverty < 400 ~ "150-400%",
+     poverty < 701 ~ "400+%"
+   ),
+  YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(nonmonog == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0)) %>%
+  group_by(Income, Race) %>%
+  summarise(LifeMean = survey_mean(lifprtnr, vartype = "ci"),
+            YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+female_income_race = female %>%
+  filter(ager >= 25 & ager <= 44) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(Race = dplyr::recode(HISPRACE2,
+   `1` = "Hispanic",
+   `2` = "Non-Hispanic White",
+   `3` = "Non-Hispanic Black",
+   `4` = "Non-Hispanic Other"),
+   Income = dplyr::case_when(
+     poverty < 150 ~ "0-150%",
+     poverty < 400 ~ "150-400%",
+     poverty < 701 ~ "400+%"
+   ),
+  YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(nonmonog == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0)) %>%
+   group_by(Income, Race) %>%
+  summarise(LifeMean = survey_mean(lifprtnr, vartype = "ci"),
+            YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+male_income_race$Sex = "Male"
+female_income_race$Sex = "Female"
+income_race = dplyr::bind_rows(male_income_race, female_income_race) %>%
+  mutate(LifeMean = paste0(formatC(LifeMean, format = "f", digits = 2), " (",
+                           formatC(LifeMean_low, format = "f", digits = 2), ", ",
+                           formatC(LifeMean_upp, format = "f", digits = 2), ")"),
+         YearMean = paste0(formatC(YearMean, format = "f", digits = 2), " (",
+                           formatC(YearMean_low, format = "f", digits = 2), ", ",
+                           formatC(YearMean_upp, format = "f", digits = 2), ")"),
+         `Percent >= 2` = paste0(formatC(Prop2 * 100, format = "f", digits = 1), "% (",
+                           formatC(Prop2_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Prop2_upp * 100, format = "f", digits = 1), "%)")) %>%
+  dplyr::select(Income, Race, Sex, LifeMean, YearMean, `Percent >= 2`)
+```
+
+```{r}
+male_income_intact = male %>%
+  filter(ager >= 25 & ager <= 44) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(Race = dplyr::recode(HISPRACE2,
+   `1` = "Hispanic",
+   `2` = "Non-Hispanic White",
+   `3` = "Non-Hispanic Black",
+   `4` = "Non-Hispanic Other"),
+   Income = dplyr::case_when(
+     poverty < 150 ~ "0-150%",
+     poverty < 300 ~ "150-300%",
+     poverty < 500 ~ "300-500%",
+     poverty < 701 ~ "500+%"
+   ),
+  YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(nonmonog == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0)) %>%
+  group_by(Income, intctfam) %>%
+  summarise(LifeMean = survey_mean(lifprtnr, vartype = "ci"),
+            YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+female_income_intact = female %>%
+  filter(ager >= 25 & ager <= 44) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(Race = dplyr::recode(HISPRACE2,
+   `1` = "Hispanic",
+   `2` = "Non-Hispanic White",
+   `3` = "Non-Hispanic Black",
+   `4` = "Non-Hispanic Other"),
+   Income = dplyr::case_when(
+     poverty < 150 ~ "0-150%",
+     poverty < 300 ~ "150-300%",
+     poverty < 500 ~ "300-500%",
+     poverty < 701 ~ "500+%"
+   ),
+  YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+          Monog = ifelse(nonmonog == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0)) %>%
+   group_by(Income, intctfam) %>%
+  summarise(LifeMean = survey_mean(lifprtnr, vartype = "ci"),
+            YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+male_income_intact$Sex = "Male"
+female_income_intact$Sex = "Female"
+income_intact = dplyr::bind_rows(male_income_intact, female_income_intact) %>%
+  mutate(Intact = dplyr::recode(intctfam, `1` = "Intact", `2` = "Not Intact"),
+        LifeMean = paste0(formatC(LifeMean, format = "f", digits = 2), " (",
+                           formatC(LifeMean_low, format = "f", digits = 2), ", ",
+                           formatC(LifeMean_upp, format = "f", digits = 2), ")"),
+         YearMean = paste0(formatC(YearMean, format = "f", digits = 2), " (",
+                           formatC(YearMean_low, format = "f", digits = 2), ", ",
+                           formatC(YearMean_upp, format = "f", digits = 2), ")"),
+         `Percent >= 2` = paste0(formatC(Prop2 * 100, format = "f", digits = 1), "% (",
+                           formatC(Prop2_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Prop2_upp * 100, format = "f", digits = 1), "%)")) %>%
+  dplyr::select(Income, Intact, Sex, LifeMean, YearMean, `Percent >= 2`)
+```
+
+```{r}
+male_income_intact_young = male %>%
+  filter(ager >= 18 & ager <= 34) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(Race = dplyr::recode(HISPRACE2,
+   `1` = "Hispanic",
+   `2` = "Non-Hispanic White",
+   `3` = "Non-Hispanic Black",
+   `4` = "Non-Hispanic Other"),
+   Income = dplyr::case_when(
+     poverty < 150 ~ "0-150%",
+     poverty < 300 ~ "150-300%",
+     poverty < 500 ~ "300-500%",
+     poverty < 701 ~ "500+%"
+   ),
+  YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+           Monog = ifelse(!is.na(oppyearnum) & oppyearnum == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0)) %>%
+  group_by(Income, intctfam) %>%
+  summarise(YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+female_income_intact_young = female %>%
+  filter(ager >= 18 & ager <= 34) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(Race = dplyr::recode(HISPRACE2,
+   `1` = "Hispanic",
+   `2` = "Non-Hispanic White",
+   `3` = "Non-Hispanic Black",
+   `4` = "Non-Hispanic Other"),
+   Income = dplyr::case_when(
+     poverty < 150 ~ "0-150%",
+     poverty < 300 ~ "150-300%",
+     poverty < 500 ~ "300-500%",
+     poverty < 701 ~ "500+%"
+   ),
+  YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+           Monog = ifelse(!is.na(oppyearnum) & oppyearnum == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0)) %>%
+   group_by(Income, intctfam) %>%
+  summarise(YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+male_income_intact_young$Sex = "Male"
+female_income_intact_young$Sex = "Female"
+income_intact_young = dplyr::bind_rows(male_income_intact_young, female_income_intact_young) %>%
+  mutate(Intact = dplyr::recode(intctfam, `1` = "Intact", `2` = "Not Intact"),
+          YearMean = paste0(formatC(YearMean, format = "f", digits = 2), " (",
+                           formatC(YearMean_low, format = "f", digits = 2), ", ",
+                           formatC(YearMean_upp, format = "f", digits = 2), ")"),
+         `Percent >= 2` = paste0(formatC(Prop2 * 100, format = "f", digits = 1), "% (",
+                           formatC(Prop2_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Prop2_upp * 100, format = "f", digits = 1), "%)"),
+         `Percent = 1` = paste0(formatC(Monog * 100, format = "f", digits = 1), "% (",
+                           formatC(Monog_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Monog_upp * 100, format = "f", digits = 1), "%)")) %>%
+  dplyr::select(Income, Intact, Sex, YearMean, `Percent = 1`, `Percent >= 2`)
+```
+
+```{r}
+male_income_young = male %>%
+  filter(ager >= 18 & ager <= 34) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(Race = dplyr::recode(HISPRACE2,
+   `1` = "Hispanic",
+   `2` = "Non-Hispanic White",
+   `3` = "Non-Hispanic Black",
+   `4` = "Non-Hispanic Other"),
+   Income = dplyr::case_when(
+     poverty < 100 ~ "0-100%",
+     poverty < 200 ~ "100-200%",
+     poverty < 300 ~ "200-300%",
+     poverty < 500 ~ "300-500%",
+     poverty < 701 ~ "500+%"
+   ),
+  YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+           Monog = ifelse(!is.na(oppyearnum) & oppyearnum == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0)) %>%
+  group_by(Income) %>%
+  summarise(YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+female_income_young = female %>%
+  filter(ager >= 18 & ager <= 34) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>% 
+  mutate(Race = dplyr::recode(HISPRACE2,
+   `1` = "Hispanic",
+   `2` = "Non-Hispanic White",
+   `3` = "Non-Hispanic Black",
+   `4` = "Non-Hispanic Other"),
+   Income = dplyr::case_when(
+     poverty < 100 ~ "0-100%",
+     poverty < 200 ~ "100-200%",
+     poverty < 300 ~ "200-300%",
+     poverty < 500 ~ "300-500%",
+     poverty < 701 ~ "500+%"
+   ),
+  YearNum = ifelse(is.na(oppyearnum) | oppyearnum >= 997, 0, oppyearnum),
+           Monog = ifelse(!is.na(oppyearnum) & oppyearnum == 1, 1, 0),
+         Single = ifelse(!is.na(oppyearnum) & oppyearnum >= 2 & oppyearnum < 50, 1, 0)) %>%
+   group_by(Income) %>%
+  summarise(YearMean = survey_mean(YearNum, vartype = "ci"),
+            Prop2 = survey_mean(Single, vartype = "ci"),
+            Monog = survey_mean(Monog, vartype = "ci", na.rm = TRUE))
+
+male_income_young$Sex = "Male"
+female_income_young$Sex = "Female"
+income_young = dplyr::bind_rows(male_income_young, female_income_young) %>%
+  mutate(YearMean = paste0(formatC(YearMean, format = "f", digits = 2), " (",
+                           formatC(YearMean_low, format = "f", digits = 2), ", ",
+                           formatC(YearMean_upp, format = "f", digits = 2), ")"),
+         `Percent >= 2` = paste0(formatC(Prop2 * 100, format = "f", digits = 1), "% (",
+                           formatC(Prop2_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Prop2_upp * 100, format = "f", digits = 1), "%)"),
+         `Percent = 1` = paste0(formatC(Monog * 100, format = "f", digits = 1), "% (",
+                           formatC(Monog_low * 100, format = "f", digits = 1), "%, ",
+                           formatC(Monog_upp * 100, format = "f", digits = 1), "%)")) %>%
+  dplyr::select(Income, Sex, YearMean, `Percent = 1`, `Percent >= 2`)
+```
+
+
+
+```{r}
+prop_by_edu_male=  male %>%
+  filter(ager >= 30 & ager <= 44) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>%
+  dplyr::mutate(Edu = ifelse(hieduc >= 12, 1, 0),
+                Income = ifelse(earn %in% c(14:15), 1, 0),
+                intctfam = ifelse(intctfam >= 8, 2, intctfam),
+                Prop1 = ifelse(lifprtnr == 1, 1, 0),
+                Prop2 = ifelse(lifprtnr >= 2 & lifprtnr <= 4, 1, 0),
+                Prop11 = ifelse(lifprtnr >= 11 & lifprtnr <= 20, 1, 0),
+                Prop21 = ifelse(lifprtnr >= 21, 1, 0)) %>%
+  group_by(Edu, intctfam) %>%
+  summarise(Prop1 = survey_mean(Prop1, vartype = "ci"),
+            Prop2 = survey_mean(Prop2, vartype = "ci"),
+            Prop11 = survey_mean(Prop11, vartype = "ci"),
+            Prop21 = survey_mean(Prop21, vartype = "ci"))
+
+
+prop_by_edu_female =  female %>%
+  filter(ager >= 30 & ager <= 44) %>%
+  as_survey_design(ids = secu, strata = sest, weights = WGT2011_2019, nest = TRUE) %>%
+  dplyr::mutate(Edu = ifelse(hieduc >= 12, 1, 0),
+                Income = ifelse(earn %in% c(14:15), 1, 0),
+                intctfam = ifelse(intctfam >= 8, 2, intctfam),
+                Prop1 = ifelse(lifprtnr == 1, 1, 0),
+                Prop2 = ifelse(lifprtnr >= 2 & lifprtnr <= 4, 1, 0),
+                Prop11 = ifelse(lifprtnr >= 11 & lifprtnr <= 20, 1, 0),
+                Prop21 = ifelse(lifprtnr >= 21, 1, 0)) %>%
+  group_by(Edu, intctfam) %>%
+  summarise(Prop1 = survey_mean(Prop1, vartype = "ci"),
+            Prop2 = survey_mean(Prop2, vartype = "ci"),
+            Prop11 = survey_mean(Prop11, vartype = "ci"),
+            Prop21 = survey_mean(Prop21, vartype = "ci"))
+
+
+prop_by_edu_male$Sex = "Male"
+prop_by_edu_female$Sex = "Female"
+prop_by_edu = dplyr::bind_rows(prop_by_edu_male, prop_by_edu_female) %>%
+  ungroup() %>%
+  mutate(Intact = dplyr::recode(intctfam, 
+                         `1` = "Yes", `2` = "No"),
+         Education = dplyr::recode(Edu, `0` = "No Degree", `1` = "Has Bachelor's"),
+         `Percent = 1` = paste0(formatC(Prop1* 100, format = "f", digits = 0), "%",  " (",
+                   formatC(Prop1_low* 100, format = "f", digits = 0), "%",", ",
+                   formatC(Prop1_upp* 100, format = "f", digits = 0), "%",")"),
+         `Percent 2-5` = paste0(formatC(Prop2* 100, format = "f", digits = 0), "%",  " (",
+                   formatC(Prop2_low* 100, format = "f", digits = 0), "%",", ",
+                   formatC(Prop2_upp* 100, format = "f", digits = 0), "%",")"),
+         `Percent 11-20` = paste0(formatC(Prop11* 100, format = "f", digits = 0), "%",  " (",
+                   formatC(Prop11_low* 100, format = "f", digits = 0), "%",", ",
+                   formatC(Prop11_upp* 100, format = "f", digits = 0), "%",")"),
+         `Percent >= 21` = paste0(formatC(Prop21* 100, format = "f", digits = 0), "%",  " (",
+                   formatC(Prop21_low* 100, format = "f", digits = 0), "%",", ",
+                   formatC(Prop21_upp* 100, format = "f", digits = 0), "%",")")) %>%
+  dplyr::select(Education, Intact, Sex, `Percent = 1`, `Percent 2-5`,
+               `Percent 11-20`, `Percent >= 21`)
+```
+
+
+
+
+
+
+\newpage
+
+
+```{r}
+knitr::kable(overall, caption = "Lifetime Number of Opposite-Sex Partners, Number of Opposite-Sex Partners Past Year, Percent Having 2 Or More Opposite-Sex Partners Past Year, Percent Having Non-Monogamous Sex Past Year by Year of Survey Age 25-44 (NSFG 2011-2019)", booktabs = TRUE, linesep = "")
+```
+
+\newpage
+
+```{r}
+knitr::kable(young, caption = "Average Number of Opposite-Sex Partners Past Year, Percent Having 2+ or 3+ Opposite-Sex Partners Past Year, Percent Having Non-Monogamous Sex Past Year by Year of Survey Age 18-34 (NSFG 2011-2019)", booktabs = TRUE, linesep = "")
+```
+
+\newpage
+
+```{r}
+knitr::kable(intact, caption = "Average Number of Opposite-Sex Partners Past Year, Percent Having 1, 2+, or 3+ Opposite-Sex Partners Past Year by Whether Grew Up with Married Family (Intact Family) Age 18-34 (NSFG 2011-2019)", booktabs = TRUE, linesep = "")
+```
+
+\newpage
+
+```{r}
+knitr::kable(race, caption = "Average Number of Opposite-Sex Partners Past Year, Percent Having 1, 2+, or 3+ Opposite-Sex Partners Past Year by Race Age 18-34 (NSFG 2011-2019)", booktabs = TRUE, linesep = "")
+```
+
+\newpage
+
+```{r}
+knitr::kable(overall_race, caption = "Lifetime Number of Opposite-Sex Partners, Number of Opposite-Sex Partners Past Year, Percent Having 2 Or More Opposite-Sex Partners Past Year (By Year of Survey, Race, and Sex)Age 25-44 (NSFG 2011-2019)", booktabs = TRUE, linesep = "") %>%
+  row_spec(c(4,8,12,16,20,24,28), hline_after = TRUE) %>%
+  column_spec(3, border_right = TRUE)
+```
+
+\newpage
+
+```{r}
+knitr::kable(edu_race, caption = "Lifetime Number of Opposite-Sex Partners, Number of Opposite-Sex Partners Past Year, Percent Having 2 Or More Opposite-Sex Partners Past Year (By Educational Attainment, Race, and Sex) Age 25-44 (NSFG 2011-2019)", booktabs = TRUE, linesep = "") %>%
+  row_spec(c(4,8,12,16,20), hline_after = TRUE) %>%
+  column_spec(3, border_right = TRUE)
+```
+
+
+\newpage
+
+```{r}
+knitr::kable(income_race, caption = "Lifetime Number of Opposite-Sex Partners, Number of Opposite-Sex Partners Past Year, Percent Having 2 Or More Opposite-Sex Partners Past Year (By Income Percent of Poverty Line, Race, and Sex) Age 25-44 (NSFG 2011-2019)", booktabs = TRUE, linesep = "") %>%
+  row_spec(c(4,8,12,16,20), hline_after = TRUE) %>%
+  column_spec(3, border_right = TRUE)
+```
+
+
+\newpage
+
+```{r}
+knitr::kable(income_intact, caption = "Lifetime Number of Opposite-Sex Partners, Number of Opposite-Sex Partners Past Year, Percent Having 2 Or More Opposite-Sex Partners Past Year (By Income Percent of Poverty Line, Whether Grew Up with Married Parents (Intact Family), and Sex) Age 25-44 (NSFG 2011-2019)", booktabs = TRUE, linesep = "") %>%
+  row_spec(8, hline_after = TRUE) %>%
+  column_spec(3, border_right = TRUE)
+```
+
+\newpage
+
+```{r}
+knitr::kable(income_intact_young, caption = "Average Number of Opposite-Sex Partners Past Year, Percent Having 1 or 2+ Opposite-Sex Partners Past Year (By Income Percent of Poverty Line, Whether Grew Up with Married Parents (Intact Family), and Sex) Age 18-34 (NSFG 2011-2019)", booktabs = TRUE, linesep = "") %>%
+  row_spec(8, hline_after = TRUE) %>%
+  column_spec(3, border_right = TRUE)
+```
+
+
+\newpage
+
+```{r}
+knitr::kable(income_young, caption = "Average Number of Opposite-Sex Partners Past Year, Percent Having 1 or 2+ Opposite-Sex Partners Past Year (By Income Percent of Poverty Line and Sex) Age 18-34 (NSFG 2011-2019)", booktabs = TRUE, linesep = "") %>%
+  row_spec(5, hline_after = TRUE) %>%
+  column_spec(2, border_right = TRUE)
+```
+
+\newpage
+
+```{r}
+knitr::kable(prop_by_edu, caption = "Number of Lifetime Opposite-Sex Partners (1, 2-5, 11-20, 21+) (By Educational Attainment, Married Biological Parents Status, and Sex) Age 18-34 (NSFG 2011-2019)", booktabs = TRUE, linesep = "") %>%
+  row_spec(4, hline_after = TRUE) %>%
+  column_spec(3, border_right = TRUE)
+```
+
+
+\newpage
+
+```{r}
+knitr::kable(extreme, caption = "Lifetime Number of Opposite-Sex Partners Percent 31 or Greater and Percent 50 or Greater by Education and Race Age 30-44 (NSFG 2011-2019)", booktabs = TRUE, linesep = "") %>%
+  row_spec(8, hline_after = TRUE) %>%
+  column_spec(3, border_right = TRUE)
+```
+
+
+\newpage
+
+```{r}
+knitr::kable(school, caption = "Number of Opposite-Sex Partners Past Year Age 19-23 by Whether in School, Sex, and Intact family (Parents were Married)  (NSFG 2011-2019)", booktabs = TRUE, linesep = "") %>%
+  row_spec(4, hline_after = TRUE) %>%
+  column_spec(3, border_right = TRUE)
+```
+
+
+
+\newpage
+```{r}
+summary(model_male)
+```
+
+\newpage
+```{r}
+summary(model_female)
+```
+
+\newpage
+```{r}
+summary(model_male_year)
+```
+
+\newpage
+```{r}
+summary(model_female_year)
+```
+
+
+\newpage
+```{r}
+summary(logit_male_glm)
+```
+
+\newpage
+```{r}
+summary(logit_male_glm_nodrug)
+```
+
+
+\newpage
+```{r}
+summary(logit_female_glm)
+```
+
+\newpage
+```{r}
+summary(logit_female_glm_nodrug)
+```
+
+```{r}
+plot_m
+```
+
+```{r}
+plot_f
+```
+
+
+```{r}
+age_17
+```
+
+```{r}
+age_18
+```
+
+```{r}
+age_19
+```
+
+
+```{r}
+age_20
+```
