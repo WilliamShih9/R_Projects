@@ -1,6 +1,6 @@
 # R_Projects
 
-This is a demonstration of dplyr and R projects from public datasets.
+This is a demonstration of dplyr and R projects from public datasets. The color coding on GitHub for .Rmd files isn't great, so it's best to download as zip first and then view the .Rmd files and .pdf files.
 
 Projects include analysis from
 
