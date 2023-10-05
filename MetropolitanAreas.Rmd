@@ -23,9 +23,9 @@ Notable trends:
 6) The Villages, FL is a famous retirement area that apparently used to be poor, but has caught up to the national average.
 
 
-```{r setup, include=FALSE}
+```{r setup}
 library(readxl)
-Table <- read_excel("C:/Users/willi/Downloads/Table.xlsx",skip = 5)
+Table <- read_excel("Data/Table.xlsx",skip = 5)
 library(ggplot2)
 library(dplyr)
 library(tidyr)

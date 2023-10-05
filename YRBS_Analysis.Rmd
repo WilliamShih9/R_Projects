@@ -29,18 +29,18 @@ get_data = function(file){
     group_split()
 }
 
-data = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS1.xlsx")
-data_NYC = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_NYC.xlsx")
-data_MA = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_Massachusetts.xlsx")
-data_SF = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_SF.xlsx")
-data_LA = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_LA.xlsx")
-data_4 = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_4.xlsx")
-data_NYC_4 = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_NYC_4.xlsx")
-data_LA_4 = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_LA_4.xlsx")
-data_Active = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_Active.xlsx")
-data_Active_NYC = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_Active_NYC.xlsx")
-data_Alcohol = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_Alcohol.xlsx")
-data_Alcohol_NYC = get_data("G:/My Drive/More Statistics/YRBS Analysis/YRBS_Alcohol_NYC.xlsx")
+data = get_data("Data/YRBS1.xlsx")
+data_NYC = get_data("Data/YRBS_NYC.xlsx")
+data_MA = get_data("Data/YRBS_Massachusetts.xlsx")
+data_SF = get_data("Data/YRBS_SF.xlsx")
+data_LA = get_data("Data/YRBS_LA.xlsx")
+data_4 = get_data("Data/YRBS_4.xlsx")
+data_NYC_4 = get_data("Data/YRBS_NYC_4.xlsx")
+data_LA_4 = get_data("Data/YRBS_LA_4.xlsx")
+data_Active = get_data("Data/YRBS_Active.xlsx")
+data_Active_NYC = get_data("Data/YRBS_Active_NYC.xlsx")
+data_Alcohol = get_data("Data/YRBS_Alcohol.xlsx")
+data_Alcohol_NYC = get_data("Data/YRBS_Alcohol_NYC.xlsx")
 
 
 plot_data = function(data, place, titl){

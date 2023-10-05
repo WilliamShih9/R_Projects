@@ -25,9 +25,9 @@ Big takeaways:
 4) One industry with a huge spike in profits is supposedly the food service industry.
 
 
-```{r setup, include=FALSE}
+```{r setup}
 library(readr)
-Table <- read_csv("C:/Users/willi/Downloads/Table.csv", col_names = FALSE, skip = 5)
+Table <- read_csv("Data/Table.csv", col_names = FALSE, skip = 5)
 library(ggplot2)
 library(dplyr)
 library(tidyr)

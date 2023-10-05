@@ -18,7 +18,7 @@ Clearly, the number of electric vehicles is growing in California. Most of these
 library(ggplot2)
 library(dplyr)
 library(tidyr)
-vehicles = read.csv("C:/Users/willi/Downloads/vehicle-fuel-type-count-by-zip-code-2022.csv")
+vehicles = read.csv("Data/vehicle-fuel-type-count-by-zip-code-2022.csv")
 
 tab = vehicles %>%
   group_by(Zip.Code, Model.Year) %>%

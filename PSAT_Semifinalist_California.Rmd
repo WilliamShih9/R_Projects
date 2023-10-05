@@ -21,22 +21,22 @@ Trends to notice:
 ```{r}
 library(readxl)
 library(dplyr)
-NationalMerit2023 <- read_excel("C:/Users/willi/Documents/NationalMerit2023.xlsx", col_names = "All") %>%
+NationalMerit2023 <- read_excel("Data/NationalMerit2023.xlsx", col_names = "All") %>%
   filter(All != "California (continued)" & All != "Semifinalists: 2023 National Merit Scholarship Program"
          & !(All %in% c(0:9)))
-NationalMerit2022 <- read_excel("C:/Users/willi/Documents/NationalMerit2022.xlsx", col_names = "All") %>%
+NationalMerit2022 <- read_excel("Data/NationalMerit2022.xlsx", col_names = "All") %>%
   filter(All != "California (continued)" & All != "Semifinalists: 2022 National Merit Scholarship Program"
          & !(All %in% c(0:9)))
-NationalMerit2021 <- read_excel("C:/Users/willi/Documents/NationalMerit2021.xlsx", col_names = "All") %>%
+NationalMerit2021 <- read_excel("Data/NationalMerit2021.xlsx", col_names = "All") %>%
   filter(All != "California (continued)" & All != "Semifinalists: 2021 National Merit Scholarship Program"
          & !(All %in% c(0:9)))
-NationalMerit2018 <- read_excel("C:/Users/willi/Documents/NationalMerit2018.xlsx", col_names = "All") %>%
+NationalMerit2018 <- read_excel("Data/NationalMerit2018.xlsx", col_names = "All") %>%
   filter(All != "California (continued)" & All != "Semifinalists: 2018 National Merit Scholarship Program"
          & !(All %in% c(0:9)))
-NationalMerit2016 <- read_excel("C:/Users/willi/Documents/NationalMerit2016.xlsx", col_names = "All") %>%
+NationalMerit2016 <- read_excel("Data/NationalMerit2016.xlsx", col_names = "All") %>%
   filter(All != "California (continued)" & All != "Semifinalists: 2016 National Merit Scholarship Program"
          & !(All %in% c(0:9)))
-NationalMerit2015 <- read_excel("C:/Users/willi/Documents/NationalMerit2015.xlsx", col_names = "All") %>%
+NationalMerit2015 <- read_excel("Data/NationalMerit2015.xlsx", col_names = "All") %>%
   filter(All != "California (continued)" & All != "Semifinalists: 2015 National Merit Scholarship Program"
          & !(All %in% c(0:9)))
 convert_this = function(temp, year){

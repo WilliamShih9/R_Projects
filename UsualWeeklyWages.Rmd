@@ -32,8 +32,8 @@ Takeaways from the following charts:
 library(dplyr)
 library(ggplot2)
 library(tidyr)
-data = readxl::read_excel("C:/Users/willi/Downloads/SeriesReport-20230719035728_307369.xlsx", skip = 3)
-inflation = read.csv("C:/Users/willi/Downloads/CPIAUCSL (1).csv",
+data = readxl::read_excel("Data/SeriesReport-20230719035728_307369.xlsx", skip = 3)
+inflation = read.csv("Data/CPIAUCSL (1).csv",
                      col.names = c("Date", "Factor"))
 inflation$Date = as.Date(inflation$Date)
 names(data) = c("ID", as.character(seq(as.Date("2000/1/1"), as.Date("2023/12/1"), by="quarter")))

@@ -25,9 +25,9 @@ With the simulated data, an estimate of scale scores divided by race, gender, or
 set.seed(1)
 library(dplyr)
 library(ggplot2)
-mean_sd = readxl::read_excel("G:/My Drive/More Statistics/CAASP2021-2022/MeanAndSDbyGender.xlsx")
-mean_sd_status = readxl::read_excel("G:/My Drive/More Statistics/CAASP2021-2022/MeanAndSDbyEconomicStatus.xlsx")
-mean_sd_by_all = readxl::read_excel("G:/My Drive/More Statistics/CAASP2021-2022/MeanAndSDAll.xlsx")
+mean_sd = readxl::read_excel("Data/MeanAndSDbyGender.xlsx")
+mean_sd_status = readxl::read_excel("Data/MeanAndSDbyEconomicStatus.xlsx")
+mean_sd_by_all = readxl::read_excel("Data/MeanAndSDAll.xlsx")
 
 get_distribution = function(mean_sd, replicate = 1){
   all = list()

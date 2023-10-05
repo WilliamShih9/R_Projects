@@ -23,9 +23,9 @@ library(haven)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
-res = read_xpt("C:/Users/willi/Downloads/DXX_J.xpt")
-demo = read_xpt("C:/Users/willi/Downloads/DEMO_J.xpt")
-body = read_xpt("C:/Users/willi/Downloads/BMX_J.xpt")
+res = read_xpt("Data/DXX_J.xpt")
+demo = read_xpt("Data/DEMO_J.xpt")
+body = read_xpt("Data/BMX_J.xpt")
 
 total = demo %>%
   left_join(body, by = "SEQN") %>%

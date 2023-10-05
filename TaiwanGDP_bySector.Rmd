@@ -32,7 +32,7 @@ library(readxl)
 library(zoo)
 library(ggplot2)
 library(dplyr)
-asdf <- read_excel("C:/Users/willi/Downloads/E018103020-02558096.xlsx", 
+asdf <- read_excel("Data/E018103020-02558096.xlsx", 
     skip = 2, col_types = c("guess", "text","numeric","numeric","numeric"))
 asdf[[1]][1:4760] = sort(rep(unique(asdf[[1]])[c(1:170)], 28))
 colnames(asdf) = c("Quarter","Sector","GDP", "RealGDP","Price")
