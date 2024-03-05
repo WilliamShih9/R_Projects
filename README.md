@@ -1,6 +1,6 @@
 # R_Projects
 
-This is a demonstration of dplyr and R projects from public datasets. The color coding on GitHub for .Rmd files isn't great, so it's best to download as zip first and then view the .Rmd files and .pdf files.
+This is a demonstration of data wrangling and visualization from public datasets. The color coding on GitHub for .Rmd files isn't great, so it's best to download as zip first and then view the .Rmd files and .pdf files.
 
 Projects include analysis from
 
@@ -8,7 +8,7 @@ Projects include analysis from
 
 2) California Department of Motor Vehicles (**Vehicles_Registered_CA**)
 
-3) Bureau of Labor Statistics and US Census Bureau (**UsualWeeklyWages**)
+3) Bureau of Labor Statistics and US Census Bureau (**UsualWeeklyWages**, **UsualWeeklyWagesByPCE**)
 
 4) Directorate General of Budget, Accounting and Statistics (**TaiwanGDP_bySector**)
 
