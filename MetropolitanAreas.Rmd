@@ -6,13 +6,13 @@ date: "2022-11-17"
 
 # GDP and Income for Metropolitan Areas
 
-The charts below show the relative wealth of metropolitan areas to the national average from 1969 to 2021. The data comes from the BEA (Bureau of Economic Analysis) and the data only goes as far back as 1969.
+The charts below show the relative wealth of metropolitan areas to the national average from 1969 to 2022. The data comes from the BEA (Bureau of Economic Analysis) and the data only goes as far back as 1969.
 
 Notable trends:
 
 1) Austin-Round Rock-Georgetown, TX actually used to be poorer than average until quite recently.
 
-2) Detroit-Warren-Dearborn, MI had a large relative decline from 1969 to 2021. Actually, nearly all cities in Michigan are declining relative to the national average. The same applies for many nearby states, which is a reason why this area is often called the "Rust Belt".
+2) Detroit-Warren-Dearborn, MI had a large relative decline from 1969 to 2022. Actually, nearly all cities in Michigan are declining relative to the national average. The same applies for many nearby states, which is a reason why this area is often called the "Rust Belt".
 
 3) Midland, TX became one of the richest cities due to the oil boom.
 
@@ -31,9 +31,9 @@ library(dplyr)
 library(tidyr)
 temp = stringr::str_split(Table[[2]], " \\(")
 Table[[2]] = sapply(temp, function(x) x[1])
-Relative = bind_rows(apply(Table[3:55], 1, function(x) x/Table[1,3:55]))
+Relative = bind_rows(apply(Table[3:56], 1, function(x) x/Table[1,3:56]))
 Relative = cbind(Table[2], Relative)
-Relative = pivot_longer(Relative, cols = 2:54, names_to = "Year", values_to = "Relative")
+Relative = pivot_longer(Relative, cols = 2:55, names_to = "Year", values_to = "Relative")
 Relative[[2]] = as.numeric(Relative[[2]])
 Relative[[4]] = stringr::str_sub(Relative[[1]], start= -2)
 ```
@@ -44,8 +44,9 @@ Relative[[4]] = stringr::str_sub(Relative[[1]], start= -2)
 make_plot = function(x){
   minimum = min(0.8, min(x[[3]]))
   maximum = max(1.2, max(x[[3]]))
-  name = paste0("Relative Personal Income per Capita (US = 1) 1969-2021 for \n", x[[1]][1])
+  name = paste0("Relative Personal Income per Capita (US = 100%) 1969-2022 for \n", x[[1]][1])
   ggplot(x, aes(x = Year, y = Relative)) +
+    scale_y_continuous(labels = scales::label_percent()) +
     geom_point() +
     geom_line() +
     theme_bw() + 
@@ -57,9 +58,10 @@ make_plot_state = function(x){
   x[[1]] = stringr::str_sub(x[[1]], end = 10)
   minimum = min(0.8, min(x[[3]]))
   maximum = max(1.2, max(x[[3]]))
-  name = paste0("Relative Personal Income per Capita (US = 1) 1969-2021 for cities in \n", x[[4]][1])
+  name = paste0("Relative Personal Income per Capita (US = 100%) 1969-2022 for cities in \n", x[[4]][1])
   ggplot(x, aes(x = Year, y = Relative, color = GeoName)) +
     geom_point() +
+    scale_y_continuous(labels = scales::label_percent()) +
     geom_line() +
     theme_bw() + 
     ylim(minimum, maximum) +
@@ -68,8 +70,9 @@ make_plot_state = function(x){
 make_plot_city = function(x){
   minimum = min(0.8, min(x[[3]]))
   maximum = max(1.2, max(x[[3]]))
-  name = paste0("Relative Personal Income per Capita (US = 1) 1969-2021")
+  name = paste0("Relative Personal Income per Capita (US = 100%) 1969-2022")
   ggplot(x, aes(x = Year, y = Relative, color = GeoName)) +
+    scale_y_continuous(labels = scales::label_percent()) +
     geom_point() +
     geom_line() +
     theme_bw() + 
@@ -123,12 +126,12 @@ Plot
 # Wages
 
 ```{r}
-Table <- read_excel("C:/Users/willi/Downloads/Table (1).xlsx",skip = 5)
+Table <- read_excel("Data/Table (5).xlsx",skip = 5)
 temp = stringr::str_split(Table[[2]], " \\(")
 Table[[2]] = sapply(temp, function(x) x[1])
-Relative = bind_rows(apply(Table[3:55], 1, function(x) x/Table[1,3:55]))
+Relative = bind_rows(apply(Table[3:56], 1, function(x) x/Table[1,3:56]))
 Relative = cbind(Table[2], Relative)
-Relative = pivot_longer(Relative, cols = 2:54, names_to = "Year", values_to = "Relative")
+Relative = pivot_longer(Relative, cols = 2:55, names_to = "Year", values_to = "Relative")
 Relative[[2]] = as.numeric(Relative[[2]])
 Relative[[4]] = stringr::str_sub(Relative[[1]], start= -2)
 ```
@@ -139,10 +142,11 @@ Relative[[4]] = stringr::str_sub(Relative[[1]], start= -2)
 make_plot = function(x){
   minimum = min(0.8, min(x[[3]]))
   maximum = max(1.2, max(x[[3]]))
-  name = paste0("Relative Average Wages and Salaries (US = 1) 1969-2021 for \n", x[[1]][1])
+  name = paste0("Relative Average Wages and Salaries (US = 100%) 1969-2022 for \n", x[[1]][1])
   ggplot(x, aes(x = Year, y = Relative)) +
     geom_point() +
     geom_line() +
+    scale_y_continuous(labels = scales::label_percent()) +
     theme_bw() + 
     ylim(minimum, maximum) +
     ggtitle(name)
@@ -152,23 +156,25 @@ make_plot_state = function(x){
   x[[1]] = stringr::str_sub(x[[1]], end = 10)
   minimum = min(0.8, min(x[[3]]))
   maximum = max(1.2, max(x[[3]]))
-  name = paste0("Relative Average Wages and Salaries (US = 1)  1969-2021 for cities in \n", x[[4]][1])
+  name = paste0("Relative Average Wages and Salaries (US = 100%)  1969-2022 for cities in \n", x[[4]][1])
   ggplot(x, aes(x = Year, y = Relative, color = GeoName)) +
     geom_point() +
     geom_line() +
     theme_bw() + 
+    scale_y_continuous(labels = scales::label_percent()) +
     ylim(minimum, maximum) +
     ggtitle(name)
 }
 make_plot_city = function(x){
   minimum = min(0.8, min(x[[3]]))
   maximum = max(1.2, max(x[[3]]))
-  name = paste0("Relative  Average Wages and Salaries (US = 1) 1969-2021")
+  name = paste0("Relative Average Wages and Salaries (US = 100%) 1969-2022")
   ggplot(x, aes(x = Year, y = Relative, color = GeoName)) +
     geom_point() +
     geom_line() +
     theme_bw() + 
     ylim(minimum, maximum) +
+    scale_y_continuous(labels = scales::label_percent()) +
     ggtitle(name) +
     theme(legend.title = element_text(size = 6), 
                legend.text = element_text(size = 6))
