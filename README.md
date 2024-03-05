@@ -8,7 +8,7 @@ Projects include analysis from
 
 2) California Department of Motor Vehicles (**Vehicles_Registered_CA**)
 
-3) Bureau of Labor Statistics and US Census Bureau (**UsualWeeklyWages**, **UsualWeeklyWagesByPCE**)
+3) Bureau of Labor Statistics and US Census Bureau (**UsualWeeklyWages**, **UsualWeeklyWages_ByPCE**)
 
 4) Directorate General of Budget, Accounting and Statistics (**TaiwanGDP_bySector**)
 
